@@ -737,10 +737,27 @@ export function PetProvider({ children }: { children: ReactNode }) {
 
   const setNickname = useCallback(
     async (nick: string) => {
-      setState((s) => ({ ...s, petNickname: nick }));
-      success("Nickname updated!");
+      if (!wallet.address) {
+        toastError("Connect wallet to update nickname");
+        return;
+      }
+
+      const cleanNick = nick.trim();
+      const previousNick = stateRef.current.petNickname;
+      if (cleanNick === previousNick) return;
+
+      setState((s) => ({ ...s, petNickname: cleanNick }));
+      try {
+        await createMochiPetContract(wallet.address).setNickname(cleanNick);
+        success("Nickname saved on-chain!");
+      } catch (err) {
+        setState((s) => ({ ...s, petNickname: previousNick }));
+        toastError("Failed to save nickname", {
+          description: err instanceof Error ? err.message : "Please try again.",
+        });
+      }
     },
-    [],
+    [wallet.address],
   );
 
   const setPetAvatar = useCallback((avatarId: string) => {
