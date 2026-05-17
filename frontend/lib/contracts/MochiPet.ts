@@ -3,6 +3,7 @@
 import { createClient } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
 import { TransactionHashVariant, TransactionStatus } from "genlayer-js/types";
+import { parseEventLogs } from "viem";
 import { getContractAddress, getStudioUrl } from "../genlayer/client";
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -109,8 +110,63 @@ async function waitForReadableReceipt(client: ReturnType<typeof createClient>, t
   );
 }
 
+function readNewTransactionId(client: ReturnType<typeof createClient>, walletReceipt: any): string | null {
+  const consensusAbi = (client as any).chain?.consensusMainContract?.abi;
+  if (!consensusAbi || !Array.isArray(walletReceipt?.logs)) return null;
+
+  const events = parseEventLogs({
+    abi: consensusAbi,
+    eventName: "NewTransaction",
+    logs: walletReceipt.logs,
+  } as any) as { args?: { txId?: string } }[];
+
+  return events[0]?.args?.txId ?? null;
+}
+
+async function resolveConsensusTxHash(client: ReturnType<typeof createClient>, txHash: string) {
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < RECEIPT_RETRIES; attempt += 1) {
+    try {
+      const walletReceipt = await (client as any).getTransactionReceipt({
+        hash: txHash as `0x${string}`,
+      });
+      if (!walletReceipt) {
+        throw new Error("Transaction not found");
+      }
+      const consensusTxId = readNewTransactionId(client, walletReceipt);
+      if (consensusTxId) return consensusTxId;
+      throw new Error("Wallet transaction was mined, but no GenLayer NewTransaction event was found.");
+    } catch (err) {
+      lastError = err;
+      if (!isReceiptLookupPending(err)) {
+        throw err;
+      }
+    }
+
+    try {
+      await client.getTransaction({ hash: txHash as any });
+      return txHash;
+    } catch (err) {
+      lastError = err;
+      if (!isReceiptLookupPending(err)) {
+        throw err;
+      }
+    }
+
+    await sleepMs(RECEIPT_INTERVAL_MS);
+  }
+
+  const waitedSeconds = Math.round((RECEIPT_RETRIES * RECEIPT_INTERVAL_MS) / 1000);
+  const detail = lastError instanceof Error ? ` Last error: ${lastError.message}` : "";
+  throw new Error(
+    `Transaction was submitted, but the GenLayer transaction id was not readable within ${waitedSeconds} seconds.${detail}`,
+  );
+}
+
 async function checkReceipt(client: ReturnType<typeof createClient>, txHash: string) {
-  const receipt = await waitForReadableReceipt(client, txHash);
+  const consensusTxHash = await resolveConsensusTxHash(client, txHash);
+  const receipt = await waitForReadableReceipt(client, consensusTxHash);
 
   const raw = receipt as any;
   const statusNameByNumber: Record<string, string> = {
