@@ -269,14 +269,41 @@
     position: fixed;
     inset: 0;
     pointer-events: none;
-    opacity: 0.18;
+    opacity: 0.16;
     background-image:
+      url("/assets/mochi/background/logo.png"),
+      url("/assets/mochi/background/logo.png"),
+      url("/assets/mochi/background/logo.png"),
+      url("/assets/mochi/background/logo.png"),
+      url("/assets/mochi/background/logo.png"),
+      url("/assets/mochi/background/logo.png"),
+      url("/assets/mochi/background/logo.png"),
       url("/assets/mochi/background/logo.png"),
       linear-gradient(45deg, transparent 0 46px, rgb(53 236 255 / 0.20) 47px 48px, transparent 49px 96px),
       linear-gradient(-45deg, transparent 0 46px, rgb(255 79 216 / 0.18) 47px 48px, transparent 49px 96px);
-    background-position: center 72px, center, center;
-    background-repeat: no-repeat, repeat, repeat;
-    background-size: min(84vw, 820px) auto, 192px 192px, 192px 192px;
+    background-position:
+      7% 18%,
+      24% 76%,
+      42% 30%,
+      62% 92%,
+      78% 16%,
+      91% 58%,
+      12% 96%,
+      52% 58%,
+      center,
+      center;
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat, repeat;
+    background-size:
+      clamp(88px, 10vw, 132px) auto,
+      clamp(104px, 12vw, 156px) auto,
+      clamp(84px, 9vw, 124px) auto,
+      clamp(116px, 13vw, 168px) auto,
+      clamp(94px, 11vw, 148px) auto,
+      clamp(106px, 12vw, 158px) auto,
+      clamp(78px, 8vw, 112px) auto,
+      clamp(88px, 10vw, 132px) auto,
+      192px 192px,
+      192px 192px;
     filter: saturate(1.35) contrast(1.08) brightness(1.15);
     mix-blend-mode: screen;
     mask-image: linear-gradient(180deg, rgb(0 0 0 / 0.86) 0%, rgb(0 0 0 / 0.72) 58%, rgb(0 0 0 / 0.38) 100%);
