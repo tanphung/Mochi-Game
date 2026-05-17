@@ -8,47 +8,56 @@
 
 /* GenLayer Brand Colors 2025 */
 :root {
-  /* Base colors - keep black background for dark theme */
-  --background: oklch(0 0 0);
+  /* Mochi prism palette sampled from the logo: cyan, blue, violet, magenta, gold */
+  --background: oklch(0.17 0.055 268);
   --foreground: oklch(0.98 0 0);
+  --mochi-cyan: #35ecff;
+  --mochi-blue: #2448ff;
+  --mochi-violet: #8b5cff;
+  --mochi-magenta: #ff4fd8;
+  --mochi-gold: #ffe96a;
+  --mochi-ink: #10142d;
+  --mochi-ink-2: #151a3f;
+  --mochi-surface: rgb(24 30 70 / 0.68);
+  --mochi-surface-strong: rgb(30 36 86 / 0.82);
 
-  /* Cards with navy tint per brand guidelines */
-  --card: oklch(0.25 0.08 265);
+  /* Cards with brighter prism-blue tint */
+  --card: oklch(0.28 0.105 276);
   --card-foreground: oklch(0.98 0 0);
-  --popover: oklch(0.25 0.08 265);
+  --popover: oklch(0.27 0.10 276);
   --popover-foreground: oklch(0.98 0 0);
 
   /* Primary: Purple-Pink Gradient (#9B6AF6 → #E37DF7) */
-  --primary: oklch(0.65 0.22 300);
+  --primary: oklch(0.72 0.24 310);
   --primary-foreground: oklch(0.98 0 0);
 
   /* Secondary: Navy Blue (#282B5D) */
-  --secondary: oklch(0.25 0.08 265);
+  --secondary: oklch(0.29 0.11 270);
   --secondary-foreground: oklch(0.98 0 0);
 
   /* Muted states */
-  --muted: oklch(0.18 0.04 265);
-  --muted-foreground: oklch(0.55 0 0);
+  --muted: oklch(0.22 0.055 270);
+  --muted-foreground: oklch(0.76 0.025 280);
 
   /* Accent: Purple (brand primary) */
-  --accent: oklch(0.65 0.22 300);
+  --accent: oklch(0.88 0.16 205);
   --accent-foreground: oklch(0.98 0 0);
 
   /* Brand Blue: #110FFF */
-  --blue: oklch(0.55 0.37 265);
+  --blue: oklch(0.58 0.32 265);
   --blue-foreground: oklch(0.98 0 0);
 
   /* Brand Pink (gradient end): #E37DF7 */
-  --pink: oklch(0.78 0.18 330);
+  --pink: oklch(0.78 0.24 330);
 
   /* Destructive remains red */
   --destructive: oklch(0.65 0.25 25);
   --destructive-foreground: oklch(0.98 0 0);
 
   /* Borders and inputs with navy tint */
-  --border: oklch(0.25 0.08 265);
-  --input: oklch(0.20 0.06 265);
-  --ring: oklch(0.65 0.22 300);
+  --border: oklch(0.38 0.11 275);
+  --input: oklch(0.25 0.075 272);
+  --ring: oklch(0.86 0.16 205);
 
   /* Chart colors using brand palette */
   --chart-1: oklch(0.65 0.22 300); /* Purple */
@@ -72,25 +81,25 @@
 
 /* Dark theme (same as root for this project - already dark) */
 .dark {
-  --background: oklch(0 0 0);
+  --background: oklch(0.17 0.055 268);
   --foreground: oklch(0.98 0 0);
-  --card: oklch(0.25 0.08 265);
+  --card: oklch(0.28 0.105 276);
   --card-foreground: oklch(0.98 0 0);
-  --popover: oklch(0.25 0.08 265);
+  --popover: oklch(0.27 0.10 276);
   --popover-foreground: oklch(0.98 0 0);
-  --primary: oklch(0.65 0.22 300);
+  --primary: oklch(0.72 0.24 310);
   --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.25 0.08 265);
+  --secondary: oklch(0.29 0.11 270);
   --secondary-foreground: oklch(0.98 0 0);
-  --muted: oklch(0.18 0.04 265);
-  --muted-foreground: oklch(0.55 0 0);
-  --accent: oklch(0.65 0.22 300);
+  --muted: oklch(0.22 0.055 270);
+  --muted-foreground: oklch(0.76 0.025 280);
+  --accent: oklch(0.88 0.16 205);
   --accent-foreground: oklch(0.98 0 0);
   --destructive: oklch(0.65 0.25 25);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.25 0.08 265);
-  --input: oklch(0.20 0.06 265);
-  --ring: oklch(0.65 0.22 300);
+  --border: oklch(0.38 0.11 275);
+  --input: oklch(0.25 0.075 272);
+  --ring: oklch(0.86 0.16 205);
   --chart-1: oklch(0.65 0.22 300);
   --chart-2: oklch(0.78 0.18 330);
   --chart-3: oklch(0.55 0.37 265);
@@ -161,7 +170,7 @@
     /* Use Space Grotesk for headings (via --font-display from layout.tsx) */
     font-family: var(--font-display), var(--font-body), sans-serif;
     font-weight: 600;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
   }
 }
 
@@ -241,6 +250,212 @@
     border: none;
     transition: all 0.2s ease;
     box-shadow: 0 2px 4px 0 oklch(0.65 0.22 300 / 0.2);
+  }
+
+  .mochi-shell {
+    min-height: 100vh;
+    color: #f8fafc;
+    background:
+      radial-gradient(circle at 12% 6%, rgb(53 236 255 / 0.24), transparent 30rem),
+      radial-gradient(circle at 82% 12%, rgb(255 79 216 / 0.22), transparent 32rem),
+      radial-gradient(circle at 54% 108%, rgb(36 72 255 / 0.28), transparent 34rem),
+      linear-gradient(180deg, #151942 0%, #111735 46%, #0d2030 100%);
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  .mochi-shell::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.18;
+    background-image:
+      url("/assets/mochi/background/logo.png"),
+      linear-gradient(45deg, transparent 0 46px, rgb(53 236 255 / 0.20) 47px 48px, transparent 49px 96px),
+      linear-gradient(-45deg, transparent 0 46px, rgb(255 79 216 / 0.18) 47px 48px, transparent 49px 96px);
+    background-position: center 72px, center, center;
+    background-repeat: no-repeat, repeat, repeat;
+    background-size: min(84vw, 820px) auto, 192px 192px, 192px 192px;
+    filter: saturate(1.35) contrast(1.08) brightness(1.15);
+    mix-blend-mode: screen;
+    mask-image: linear-gradient(180deg, rgb(0 0 0 / 0.86) 0%, rgb(0 0 0 / 0.72) 58%, rgb(0 0 0 / 0.38) 100%);
+  }
+
+  .mochi-container {
+    width: min(1160px, calc(100% - 32px));
+    margin-inline: auto;
+  }
+
+  .mochi-nav {
+    min-height: 64px;
+    background: linear-gradient(90deg, rgb(18 23 58 / 0.92), rgb(20 31 66 / 0.86), rgb(28 18 62 / 0.90));
+    border-bottom: 1px solid rgb(53 236 255 / 0.16);
+    box-shadow: 0 12px 40px rgb(36 72 255 / 0.12);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .mochi-logo-mark {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--mochi-cyan) 0%, var(--mochi-blue) 36%, var(--mochi-magenta) 74%, var(--mochi-gold) 100%);
+    box-shadow:
+      0 0 28px rgb(53 236 255 / 0.34),
+      0 0 42px rgb(255 79 216 / 0.20);
+  }
+
+  .mochi-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 999px;
+    padding: 8px 14px;
+    background: rgb(255 255 255 / 0.09);
+    border: 1px solid rgb(53 236 255 / 0.18);
+    color: rgb(248 250 252 / 0.90);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .mochi-card {
+    background: linear-gradient(145deg, rgb(30 36 86 / 0.84), rgb(16 25 56 / 0.78));
+    border: 1px solid rgb(53 236 255 / 0.16);
+    border-radius: 24px;
+    box-shadow:
+      0 24px 90px rgb(20 18 70 / 0.34),
+      0 0 56px rgb(255 79 216 / 0.08),
+      inset 0 1px 0 rgb(255 255 255 / 0.12);
+  }
+
+  .mochi-panel {
+    background: linear-gradient(145deg, rgb(27 34 78 / 0.72), rgb(14 25 50 / 0.64));
+    border: 1px solid rgb(255 255 255 / 0.12);
+    border-radius: 18px;
+    box-shadow: 0 18px 60px rgb(14 16 56 / 0.22), inset 0 1px 0 rgb(255 255 255 / 0.08);
+  }
+
+  .mochi-primary-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--mochi-cyan) 0%, var(--mochi-blue) 45%, var(--mochi-magenta) 100%);
+    color: #ffffff;
+    border: 1px solid rgb(255 255 255 / 0.28);
+    box-shadow:
+      0 14px 36px rgb(36 72 255 / 0.26),
+      0 0 26px rgb(53 236 255 / 0.18);
+    font-weight: 800;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  }
+
+  .mochi-primary-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow:
+      0 18px 46px rgb(36 72 255 / 0.34),
+      0 0 34px rgb(255 79 216 / 0.18);
+  }
+
+  .mochi-primary-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .mochi-ghost-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.09);
+    color: #f8fafc;
+    border: 1px solid rgb(255 255 255 / 0.14);
+    font-weight: 700;
+    transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  }
+
+  .mochi-ghost-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    background: rgb(53 236 255 / 0.12);
+    border-color: rgb(53 236 255 / 0.38);
+  }
+
+  .mochi-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 999px;
+    padding: 10px 14px;
+    color: rgb(248 250 252 / 0.58);
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+  }
+
+  .mochi-tab-active {
+    color: #ffffff;
+    background: linear-gradient(135deg, rgb(53 236 255 / 0.18), rgb(255 79 216 / 0.16));
+    border-color: rgb(53 236 255 / 0.36);
+    box-shadow: 0 0 22px rgb(53 236 255 / 0.10);
+  }
+
+  .mochi-stat-fill {
+    background: linear-gradient(90deg, var(--mochi-cyan), var(--mochi-blue), var(--mochi-magenta), var(--mochi-gold));
+  }
+
+  .showcase-frame {
+    overflow: hidden;
+    border-radius: 28px;
+    border: 1px solid rgb(53 236 255 / 0.16);
+    background: linear-gradient(135deg, rgb(26 32 78 / 0.72), rgb(15 25 54 / 0.64));
+    box-shadow:
+      0 30px 90px rgb(14 16 56 / 0.34),
+      0 0 70px rgb(53 236 255 / 0.12);
+  }
+
+  .showcase-track {
+    display: flex;
+    width: max-content;
+    gap: 24px;
+    padding: 28px 24px;
+    animation: showcaseMarquee 34s linear infinite;
+  }
+
+  .showcase-frame:hover .showcase-track {
+    animation-play-state: paused;
+  }
+
+  @keyframes showcaseMarquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  .nft-placeholder-card {
+    width: 170px;
+    min-height: 240px;
+    border-radius: 16px;
+    padding: 10px;
+    border: 1px solid rgb(255 255 255 / 0.20);
+    box-shadow: 0 18px 40px rgb(21 21 74 / 0.34), 0 0 22px rgb(255 79 216 / 0.08);
+  }
+
+  .nft-placeholder-art {
+    height: 124px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgb(255 255 255 / 0.1);
+    overflow: hidden;
   }
 
   .btn-primary:hover:not(:disabled) {
@@ -340,11 +555,12 @@ html {
   min-height: 100vh !important;
   height: 100%;
   scroll-behavior: smooth;
-  background-color: #000000 !important;
+  background-color: #151942 !important;
   background-image:
-    radial-gradient(ellipse 80% 60% at 50% -20%, oklch(0.65 0.22 300 / 0.08) 0%, transparent 60%),
-    radial-gradient(ellipse 70% 50% at 80% 80%, oklch(0.55 0.37 265 / 0.05) 0%, transparent 50%),
-    linear-gradient(180deg, #000000 0%, #0a0a0f 50%, #000000 100%);
+    radial-gradient(ellipse 80% 60% at 18% -10%, rgb(53 236 255 / 0.18) 0%, transparent 60%),
+    radial-gradient(ellipse 74% 56% at 86% 10%, rgb(255 79 216 / 0.16) 0%, transparent 54%),
+    radial-gradient(ellipse 70% 50% at 50% 100%, rgb(36 72 255 / 0.22) 0%, transparent 54%),
+    linear-gradient(180deg, #151942 0%, #111735 50%, #0d2030 100%);
   background-attachment: fixed !important;
   background-size: 200% 200% !important;
   background-repeat: no-repeat !important;
@@ -373,7 +589,7 @@ main::before {
   right: 0;
   height: 2rem;
   background: linear-gradient(to bottom,
-    oklch(0.1 0.01 0 / 0.6) 0%,
+    rgb(21 25 66 / 0.52) 0%,
     transparent 100%
   );
   pointer-events: none;
@@ -407,8 +623,8 @@ wcm-modal-content {
 /* Enhance modal glass-morphism to match app theme */
 w3m-modal,
 wcm-modal {
-  --w3m-background: oklch(0.24 0.01 0 / 0.95) !important;
-  --w3m-color-overlay: oklch(0 0 0 / 0.8) !important;
+  --w3m-background: oklch(0.26 0.09 275 / 0.96) !important;
+  --w3m-color-overlay: oklch(0.12 0.05 270 / 0.78) !important;
 }
 
 /* Override all border radius in AppKit components */
