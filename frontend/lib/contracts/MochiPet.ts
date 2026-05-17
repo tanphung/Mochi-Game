@@ -65,14 +65,52 @@ function makeReadClient(address?: string | null) {
   return createClient(config);
 }
 
+const RECEIPT_RETRIES = 200;
+const RECEIPT_INTERVAL_MS = 3000;
+
+const sleepMs = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function isReceiptLookupPending(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("requested resource not found") ||
+    normalized.includes("transaction not found") ||
+    normalized.includes("not found") ||
+    normalized.includes("transaction status is not")
+  );
+}
+
+async function waitForReadableReceipt(client: ReturnType<typeof createClient>, txHash: string) {
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < RECEIPT_RETRIES; attempt += 1) {
+    try {
+      return await client.waitForTransactionReceipt({
+        hash: txHash as any,
+        status: TransactionStatus.ACCEPTED,
+        retries: 0,
+        interval: RECEIPT_INTERVAL_MS,
+        fullTransaction: true,
+      } as any);
+    } catch (err) {
+      lastError = err;
+      if (!isReceiptLookupPending(err)) {
+        throw err;
+      }
+      await sleepMs(RECEIPT_INTERVAL_MS);
+    }
+  }
+
+  const waitedSeconds = Math.round((RECEIPT_RETRIES * RECEIPT_INTERVAL_MS) / 1000);
+  const detail = lastError instanceof Error ? ` Last error: ${lastError.message}` : "";
+  throw new Error(
+    `Transaction was submitted, but GenLayer RPC did not expose the transaction receipt within ${waitedSeconds} seconds.${detail}`,
+  );
+}
+
 async function checkReceipt(client: ReturnType<typeof createClient>, txHash: string) {
-  const receipt = await client.waitForTransactionReceipt({
-    hash: txHash as any,
-    status: TransactionStatus.ACCEPTED,
-    retries: 200,
-    interval: 3000,
-    fullTransaction: true,
-  } as any);
+  const receipt = await waitForReadableReceipt(client, txHash);
 
   const raw = receipt as any;
   const statusNameByNumber: Record<string, string> = {
