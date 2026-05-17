@@ -4,7 +4,12 @@ import { createClient } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
 import { TransactionHashVariant, TransactionStatus } from "genlayer-js/types";
 import { parseEventLogs } from "viem";
-import { getContractAddress, getStudioUrl } from "../genlayer/client";
+import {
+  getContractAddress,
+  getStudioUrl,
+  isOnGenLayerNetwork,
+  switchToGenLayerNetwork,
+} from "../genlayer/client";
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -56,6 +61,25 @@ function makeWalletClient(address?: string | null) {
   const studioUrl = getStudioUrl();
   if (studioUrl) config.endpoint = studioUrl;
   return createClient(config);
+}
+
+async function ensureWalletOnGenLayerNetwork() {
+  if (typeof window === "undefined") return;
+
+  const onGenLayer = await isOnGenLayerNetwork();
+  if (onGenLayer) return;
+
+  await switchToGenLayerNetwork();
+
+  const switched = await isOnGenLayerNetwork();
+  if (!switched) {
+    throw new Error("Please switch MetaMask to GenLayer Studio before signing.");
+  }
+}
+
+async function makeWriteClient(address?: string | null) {
+  await ensureWalletOnGenLayerNetwork();
+  return makeWalletClient(address);
 }
 
 function makeReadClient(address?: string | null) {
@@ -359,7 +383,7 @@ class MochiPetContract {
   // ── write functions ───────────────────────────────────────────────
 
   async createPet(nickname: string): Promise<void> {
-    const client = makeWalletClient(this.account);
+    const client = await makeWriteClient(this.account);
     const txHash = await client.writeContract({
       address: this.contractAddress,
       functionName: "create_pet",
@@ -370,7 +394,7 @@ class MochiPetContract {
   }
 
   async feed(): Promise<void> {
-    const client = makeWalletClient(this.account);
+    const client = await makeWriteClient(this.account);
     const txHash = await client.writeContract({
       address: this.contractAddress,
       functionName: "feed",
@@ -381,7 +405,7 @@ class MochiPetContract {
   }
 
   async play(): Promise<void> {
-    const client = makeWalletClient(this.account);
+    const client = await makeWriteClient(this.account);
     const txHash = await client.writeContract({
       address: this.contractAddress,
       functionName: "play",
@@ -392,7 +416,7 @@ class MochiPetContract {
   }
 
   async sleep(): Promise<void> {
-    const client = makeWalletClient(this.account);
+    const client = await makeWriteClient(this.account);
     const txHash = await client.writeContract({
       address: this.contractAddress,
       functionName: "sleep",
@@ -403,7 +427,7 @@ class MochiPetContract {
   }
 
   async clean(): Promise<void> {
-    const client = makeWalletClient(this.account);
+    const client = await makeWriteClient(this.account);
     const txHash = await client.writeContract({
       address: this.contractAddress,
       functionName: "clean",
@@ -414,7 +438,7 @@ class MochiPetContract {
   }
 
   async chat(message: string): Promise<string> {
-    const client = makeWalletClient(this.account);
+    const client = await makeWriteClient(this.account);
     const txHash = await client.writeContract({
       address: this.contractAddress,
       functionName: "chat",
@@ -431,7 +455,7 @@ class MochiPetContract {
   }
 
   async setNickname(nickname: string): Promise<void> {
-    const client = makeWalletClient(this.account);
+    const client = await makeWriteClient(this.account);
     const txHash = await client.writeContract({
       address: this.contractAddress,
       functionName: "set_nickname",
@@ -442,7 +466,7 @@ class MochiPetContract {
   }
 
   async setPetColor(hexColor: string): Promise<void> {
-    const client = makeWalletClient(this.account);
+    const client = await makeWriteClient(this.account);
     const txHash = await client.writeContract({
       address: this.contractAddress,
       functionName: "set_pet_color",
@@ -453,7 +477,7 @@ class MochiPetContract {
   }
 
   async equipItem(category: ItemCategory, itemId: string): Promise<void> {
-    const client = makeWalletClient(this.account);
+    const client = await makeWriteClient(this.account);
     const txHash = await client.writeContract({
       address: this.contractAddress,
       functionName: "equip_item",
@@ -464,7 +488,7 @@ class MochiPetContract {
   }
 
   async unequipItem(category: ItemCategory): Promise<void> {
-    const client = makeWalletClient(this.account);
+    const client = await makeWriteClient(this.account);
     const txHash = await client.writeContract({
       address: this.contractAddress,
       functionName: "unequip_item",
@@ -475,7 +499,7 @@ class MochiPetContract {
   }
 
   async setRoom(roomId: string): Promise<void> {
-    const client = makeWalletClient(this.account);
+    const client = await makeWriteClient(this.account);
     const txHash = await client.writeContract({
       address: this.contractAddress,
       functionName: "set_room",
@@ -491,7 +515,7 @@ class MochiPetContract {
     equippedItems: EquippedItems;
     itemPositions: string;
   }): Promise<void> {
-    const client = makeWalletClient(this.account);
+    const client = await makeWriteClient(this.account);
     const txHash = await client.writeContract({
       address: this.contractAddress,
       functionName: "save_customization",
@@ -511,7 +535,7 @@ class MochiPetContract {
   }
 
   async mintCard(snapshot: string): Promise<void> {
-    const client = makeWalletClient(this.account);
+    const client = await makeWriteClient(this.account);
     const txHash = await client.writeContract({
       address: this.contractAddress,
       functionName: "mint_card",
