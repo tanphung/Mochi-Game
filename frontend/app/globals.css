@@ -222,6 +222,8 @@
 
   .mochi-nft-card-inner {
     border-radius: 1rem;
+    will-change: transform;
+    animation: mochiNftCardAutoFlip 12s ease-in-out infinite;
   }
 
   .mochi-nft-card-face {
@@ -280,6 +282,18 @@
     }
   }
 
+  @keyframes mochiNftCardAutoFlip {
+    0%, 36% {
+      transform: rotateY(0deg);
+    }
+    50%, 86% {
+      transform: rotateY(180deg);
+    }
+    100% {
+      transform: rotateY(360deg);
+    }
+  }
+
   @keyframes mochiCardPrism {
     from {
       transform: rotate(0deg);
@@ -302,6 +316,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .mochi-nft-card,
+    .mochi-nft-card-inner,
     .mochi-nft-card-face::before,
     .mochi-nft-card-face::after {
       animation: none;

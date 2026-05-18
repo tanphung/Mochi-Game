@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useState } from "react";
+import { forwardRef } from "react";
 import { MessageCircle, Sparkles, Trophy, Zap } from "lucide-react";
 import { EquippedItems, usePetStore } from "@/lib/store/petStore";
 import { getThemeForLevel, CardTheme } from "@/lib/data/cardThemes";
@@ -53,11 +53,13 @@ function CardAccessory({
   category,
   itemPositions,
   positionScale,
+  centerYPercent,
 }: {
   itemId: string;
   category: string;
   itemPositions?: Record<string, { x: number; y: number }>;
   positionScale: number;
+  centerYPercent: string;
 }) {
   const item = getItemById(itemId);
   const label = item?.name.slice(0, 2).toUpperCase() ?? category.slice(0, 2).toUpperCase();
@@ -70,7 +72,7 @@ function CardAccessory({
     <span
       className="absolute left-1/2 grid place-items-center text-[9px] font-black text-white shadow-lg"
       style={{
-        top: MOCHI_SCENE_AVATAR_CENTER_Y_PERCENT,
+        top: centerYPercent,
         width: imageSrc ? 224 * positionScale : 48 * positionScale,
         height: imageSrc ? 96 * positionScale : 48 * positionScale,
         transform: `translate(calc(-50% + ${finalX * positionScale}px), calc(-50% + ${finalY * positionScale}px)) scale(${item?.scale ?? 1}) rotate(${item?.rotation ?? 0}deg)`,
@@ -113,8 +115,10 @@ function CardScene({
   const room = getRoomById(roomId ?? "starter_room");
   const activeItems = Object.entries(equippedItems ?? {}).filter(([, itemId]) => Boolean(itemId));
   const sceneWidth = exportMode ? 232 : 330;
-  const sceneHeight = Math.round(sceneWidth * 0.75);
-  const avatarWidth = sceneWidth * MOCHI_SCENE_AVATAR_WIDTH_RATIO;
+  const sceneHeight = Math.round(sceneWidth * (exportMode ? 0.75 : 0.9));
+  const avatarWidthRatio = exportMode ? MOCHI_SCENE_AVATAR_WIDTH_RATIO : 0.58;
+  const avatarCenterYPercent = exportMode ? MOCHI_SCENE_AVATAR_CENTER_Y_PERCENT : "66%";
+  const avatarWidth = sceneWidth * avatarWidthRatio;
   const positionScale = avatarWidth / MOCHI_SCENE_REFERENCE_AVATAR_WIDTH;
 
   return (
@@ -125,7 +129,7 @@ function CardScene({
         height: exportMode ? sceneHeight : undefined,
         aspectRatio: `${sceneWidth} / ${sceneHeight}`,
         background: room.image
-          ? `linear-gradient(180deg, rgb(4 6 12 / 0.08), rgb(4 6 12 / 0.24)), url("${room.image}") center / cover`
+          ? `linear-gradient(180deg, rgb(4 6 12 / 0.08), rgb(4 6 12 / 0.24)), url("${room.image}") center bottom / cover`
           : room.background,
       }}
     >
@@ -135,8 +139,8 @@ function CardScene({
         alt={avatar.name}
         className="absolute left-1/2 aspect-square -translate-x-1/2 -translate-y-1/2 object-contain"
         style={{
-          top: MOCHI_SCENE_AVATAR_CENTER_Y_PERCENT,
-          width: `${MOCHI_SCENE_AVATAR_WIDTH_RATIO * 100}%`,
+          top: avatarCenterYPercent,
+          width: `${avatarWidthRatio * 100}%`,
           filter: `drop-shadow(0 0 18px ${color}88) drop-shadow(0 10px 14px rgba(0,0,0,0.45))`,
           zIndex: 1,
         }}
@@ -149,6 +153,7 @@ function CardScene({
           category={category}
           itemPositions={itemPositions}
           positionScale={positionScale}
+          centerYPercent={avatarCenterYPercent}
         />
       ))}
     </div>
@@ -209,15 +214,6 @@ function CardFront({ data, theme, exportMode = false }: { data: CardData; theme:
       <div className="mt-4 text-center text-xs font-bold opacity-35">
         Powered by GenLayer | Mochi
       </div>
-
-      {!exportMode && (
-        <div
-          className="absolute bottom-3 right-4 text-[10px] font-bold opacity-55"
-          style={{ color: theme.accentColor }}
-        >
-          tap to flip
-        </div>
-      )}
     </div>
   );
 }
@@ -313,13 +309,6 @@ function CardBack({ data, theme }: { data: CardData; theme: CardTheme }) {
           </div>
         )}
       </div>
-
-      <div
-        className="absolute bottom-3 right-4 text-[10px] font-bold opacity-55"
-        style={{ color: theme.accentColor }}
-      >
-        tap to flip
-      </div>
     </div>
   );
 }
@@ -333,7 +322,6 @@ interface CardViewerProps {
 export const CardViewer = forwardRef<HTMLDivElement, CardViewerProps>(
   function CardViewer({ data, interactive = true, exportMode = false }, ref) {
     const store = usePetStore();
-    const [flipped, setFlipped] = useState(false);
 
     const cardData: CardData = data ?? {
       petColor: store.petColor,
@@ -352,6 +340,7 @@ export const CardViewer = forwardRef<HTMLDivElement, CardViewerProps>(
     };
 
     const theme = getThemeForLevel(cardData.level);
+    const autoRotate = interactive && !exportMode;
 
     return (
       <div
@@ -362,21 +351,19 @@ export const CardViewer = forwardRef<HTMLDivElement, CardViewerProps>(
           width: exportMode ? 288 : "min(430px, calc(100vw - 40px))",
           height: exportMode ? 384 : undefined,
           aspectRatio: exportMode ? undefined : "3 / 4",
-          cursor: interactive && !exportMode ? "pointer" : "default",
+          cursor: "default",
         }}
-        onClick={() => interactive && !exportMode && setFlipped((f) => !f)}
-        role={interactive && !exportMode ? "button" : undefined}
-        aria-label={interactive && !exportMode ? "Click to flip card" : undefined}
+        aria-label={autoRotate ? "Auto rotating Mochi card" : undefined}
       >
         <div
-          className={!exportMode ? "mochi-nft-card-inner" : undefined}
+          className={autoRotate ? "mochi-nft-card-inner" : undefined}
           style={{
             position: "relative",
             width: "100%",
             height: "100%",
             transformStyle: "preserve-3d",
-            transition: exportMode ? "none" : "transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)",
-            transform: !exportMode && flipped ? "rotateY(180deg)" : "rotateY(0deg)",
+            transition: exportMode ? "none" : undefined,
+            transform: exportMode ? "rotateY(0deg)" : undefined,
           }}
         >
           <CardFront data={cardData} theme={theme} exportMode={exportMode} />
