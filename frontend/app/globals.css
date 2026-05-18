@@ -458,17 +458,6 @@
       0 0 42px rgb(255 79 216 / 0.20);
   }
 
-  .mochi-header-mark {
-    width: 48px;
-    height: 48px;
-  }
-
-  .mochi-header-mark img {
-    width: 72px;
-    height: 72px;
-    transform: translateY(6px) scale(1.06);
-  }
-
   .mochi-badge {
     display: inline-flex;
     align-items: center;

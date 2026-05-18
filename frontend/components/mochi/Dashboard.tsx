@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   Backpack,
   BookOpen,
+  Cat,
   Edit3,
   Home,
   IdCard,
@@ -64,13 +65,8 @@ export function Dashboard() {
       <header className="mochi-nav sticky top-0 z-40">
         <div className="mochi-container flex min-h-16 flex-wrap items-center justify-between gap-3 py-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="mochi-logo-mark mochi-header-mark shrink-0 overflow-hidden">
-              <img
-                src="/assets/mochi/ui/header-mochi.png"
-                alt="Mochi"
-                className="h-14 w-14 translate-y-1 object-contain"
-                draggable={false}
-              />
+            <div className="mochi-logo-mark shrink-0">
+              <Cat className="h-6 w-6" />
             </div>
             {editingNick ? (
               <div className="flex min-w-0 flex-wrap items-center gap-2">
