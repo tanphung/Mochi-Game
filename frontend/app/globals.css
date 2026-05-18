@@ -207,6 +207,107 @@
     }
   }
 
+  .mochi-nft-card {
+    transform-style: preserve-3d;
+    will-change: transform;
+    animation: mochiNftCardFloat 7.5s ease-in-out infinite;
+    filter:
+      drop-shadow(0 24px 50px rgb(36 72 255 / 0.28))
+      drop-shadow(0 0 36px rgb(255 79 216 / 0.16));
+  }
+
+  .mochi-nft-card:hover {
+    animation-play-state: paused;
+  }
+
+  .mochi-nft-card-inner {
+    border-radius: 1rem;
+  }
+
+  .mochi-nft-card-face {
+    isolation: isolate;
+  }
+
+  .mochi-nft-card-face::before,
+  .mochi-nft-card-face::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .mochi-nft-card-face::before {
+    inset: -42%;
+    opacity: 0.42;
+    background:
+      conic-gradient(from 90deg,
+        transparent 0deg,
+        rgb(53 236 255 / 0.0) 42deg,
+        rgb(53 236 255 / 0.40) 70deg,
+        rgb(255 79 216 / 0.48) 112deg,
+        rgb(255 233 106 / 0.32) 152deg,
+        transparent 198deg,
+        rgb(139 92 255 / 0.34) 250deg,
+        transparent 306deg);
+    mix-blend-mode: screen;
+    animation: mochiCardPrism 9s linear infinite;
+  }
+
+  .mochi-nft-card-face::after {
+    inset: 0;
+    opacity: 0.72;
+    background:
+      radial-gradient(circle at 16% 18%, rgb(255 255 255 / 0.75) 0 1px, transparent 2px),
+      radial-gradient(circle at 78% 22%, rgb(53 236 255 / 0.70) 0 1px, transparent 2px),
+      radial-gradient(circle at 64% 64%, rgb(255 79 216 / 0.62) 0 1px, transparent 2px),
+      radial-gradient(circle at 28% 76%, rgb(255 233 106 / 0.56) 0 1px, transparent 2px),
+      linear-gradient(115deg, transparent 18%, rgb(255 255 255 / 0.16) 48%, transparent 58%);
+    mix-blend-mode: screen;
+    animation: mochiCardSparkle 3.6s ease-in-out infinite;
+  }
+
+  .mochi-nft-card-face > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  @keyframes mochiNftCardFloat {
+    0%, 100% {
+      transform: rotateX(0deg) rotateY(-3deg) translateY(0);
+    }
+    50% {
+      transform: rotateX(2deg) rotateY(4deg) translateY(-6px);
+    }
+  }
+
+  @keyframes mochiCardPrism {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes mochiCardSparkle {
+    0%, 100% {
+      opacity: 0.42;
+      transform: translateX(-8px);
+    }
+    50% {
+      opacity: 0.88;
+      transform: translateX(8px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mochi-nft-card,
+    .mochi-nft-card-face::before,
+    .mochi-nft-card-face::after {
+      animation: none;
+    }
+  }
+
   /* Brand Gradient Utilities */
   .gradient-purple-pink {
     background: linear-gradient(135deg, oklch(0.65 0.22 300) 0%, oklch(0.78 0.18 330) 100%);
