@@ -245,7 +245,7 @@ async function renderCardImage(data: CardData, theme: CardTheme): Promise<Blob> 
   ctx.shadowBlur = 0;
 
   const activeItems = Object.entries(data.equippedItems ?? {})
-    .filter(([, itemId]) => Boolean(itemId))
+    .filter(([, itemId]) => Boolean(itemId) && !!getItemById(itemId as string))
     .map(([category, itemId]) => ({ category, itemId: itemId as string, item: getItemById(itemId as string) }))
     .sort((a, b) => (a.item?.zIndex ?? 5) - (b.item?.zIndex ?? 5));
   const positionScale = avatarWidth / MOCHI_SCENE_REFERENCE_AVATAR_WIDTH;

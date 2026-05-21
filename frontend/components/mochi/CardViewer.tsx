@@ -113,7 +113,7 @@ function CardScene({
 }) {
   const avatar = getMochiAvatar(avatarId ?? DEFAULT_MOCHI_AVATAR_ID);
   const room = getRoomById(roomId ?? "starter_room");
-  const activeItems = Object.entries(equippedItems ?? {}).filter(([, itemId]) => Boolean(itemId));
+  const activeItems = Object.entries(equippedItems ?? {}).filter(([, itemId]) => Boolean(itemId) && !!getItemById(itemId as string));
   const sceneWidth = exportMode ? 232 : 330;
   const sceneHeight = Math.round(sceneWidth * (exportMode ? 0.75 : 0.9));
   const avatarWidthRatio = exportMode ? MOCHI_SCENE_AVATAR_WIDTH_RATIO : 0.58;
