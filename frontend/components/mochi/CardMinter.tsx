@@ -9,8 +9,8 @@ import { DEFAULT_MOCHI_AVATAR_ID, getMochiAvatar } from "@/lib/data/mochiAvatars
 import { getItemById } from "@/lib/data/itemManifest";
 import { getRoomById } from "@/lib/data/roomManifest";
 import {
-  MOCHI_SCENE_AVATAR_CENTER_Y_RATIO,
-  MOCHI_SCENE_AVATAR_WIDTH_RATIO,
+  MOCHI_CARD_SCENE_AVATAR_CENTER_Y_RATIO,
+  MOCHI_CARD_SCENE_AVATAR_WIDTH_RATIO,
   MOCHI_SCENE_REFERENCE_AVATAR_WIDTH,
 } from "@/lib/data/sceneLayout";
 import { MintedCard } from "@/lib/contracts/MochiPet";
@@ -138,13 +138,13 @@ function drawMiniBar(
   textColor: string,
 ) {
   const clamped = Math.max(0, Math.min(100, value));
-  drawText(ctx, label, x, y, { font: "600 11px Arial", color: textColor, align: "left", alpha: 0.82 });
-  drawText(ctx, String(value), x + width, y, { font: "700 11px Arial", color: textColor, align: "right", alpha: 0.82 });
+  drawText(ctx, label, x, y, { font: "600 14px Arial", color: textColor, align: "left", alpha: 0.82 });
+  drawText(ctx, String(value), x + width, y, { font: "700 14px Arial", color: textColor, align: "right", alpha: 0.82 });
 
-  roundRect(ctx, x, y + 10, width, 5, 3);
+  roundRect(ctx, x, y + 14, width, 7, 4);
   ctx.fillStyle = "rgba(255,255,255,0.12)";
   ctx.fill();
-  roundRect(ctx, x, y + 10, (width * clamped) / 100, 5, 3);
+  roundRect(ctx, x, y + 14, (width * clamped) / 100, 7, 4);
   ctx.fillStyle = accent;
   ctx.fill();
 }
@@ -164,8 +164,8 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 async function renderCardImage(data: CardData, theme: CardTheme): Promise<Blob> {
   const canvas = document.createElement("canvas");
   const exportScale = 2;
-  const cardWidth = 288;
-  const cardHeight = 384;
+  const cardWidth = 430;
+  const cardHeight = 573;
   canvas.width = cardWidth * exportScale;
   canvas.height = cardHeight * exportScale;
 
@@ -191,24 +191,25 @@ async function renderCardImage(data: CardData, theme: CardTheme): Promise<Blob> 
   ctx.stroke();
   ctx.restore();
 
-  const glow = ctx.createRadialGradient(144, 120, 20, 144, 120, 220);
+  const cardCenterX = cardWidth / 2;
+  const glow = ctx.createRadialGradient(cardCenterX, 170, 20, cardCenterX, 170, 310);
   glow.addColorStop(0, `${theme.accentColor}22`);
   glow.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, cardWidth, cardHeight);
 
-  drawText(ctx, `${theme.name.toUpperCase()} CARD`, 144, 26, {
-    font: "900 12px Arial",
+  drawText(ctx, `${theme.name.toUpperCase()} CARD`, cardCenterX, 42, {
+    font: "900 15px Arial",
     color: theme.accentColor,
     alpha: 0.78,
   });
-  drawText(ctx, displayName, 144, 50, { font: "900 16px Arial", color: theme.textColor });
-  drawText(ctx, `Level ${data.level}`, 144, 72, { font: "800 14px Arial", color: theme.textColor, alpha: 0.76 });
+  drawText(ctx, displayName, cardCenterX, 72, { font: "900 24px Arial", color: theme.textColor });
+  drawText(ctx, `Level ${data.level}`, cardCenterX, 104, { font: "800 19px Arial", color: theme.textColor, alpha: 0.76 });
 
-  const sceneX = 28;
-  const sceneY = 112;
-  const sceneWidth = 232;
-  const sceneHeight = 174;
+  const sceneWidth = 330;
+  const sceneHeight = Math.round(sceneWidth * 0.9);
+  const sceneX = (cardWidth - sceneWidth) / 2;
+  const sceneY = 150;
   ctx.save();
   roundRect(ctx, sceneX, sceneY, sceneWidth, sceneHeight, 12);
   ctx.clip();
@@ -237,9 +238,9 @@ async function renderCardImage(data: CardData, theme: CardTheme): Promise<Blob> 
   ctx.fillStyle = bottomShade;
   ctx.fillRect(sceneX, sceneY, sceneWidth, sceneHeight);
 
-  const avatarWidth = sceneWidth * MOCHI_SCENE_AVATAR_WIDTH_RATIO;
+  const avatarWidth = sceneWidth * MOCHI_CARD_SCENE_AVATAR_WIDTH_RATIO;
   const avatarX = sceneX + sceneWidth / 2 - avatarWidth / 2;
-  const avatarY = sceneY + sceneHeight * MOCHI_SCENE_AVATAR_CENTER_Y_RATIO - avatarWidth / 2;
+  const avatarY = sceneY + sceneHeight * MOCHI_CARD_SCENE_AVATAR_CENTER_Y_RATIO - avatarWidth / 2;
   ctx.shadowColor = `${data.petColor}88`;
   ctx.shadowBlur = 18;
   ctx.drawImage(avatarImg, avatarX, avatarY, avatarWidth, avatarWidth);
@@ -259,7 +260,7 @@ async function renderCardImage(data: CardData, theme: CardTheme): Promise<Blob> 
     const finalY = customPos?.y ?? item?.offsetY ?? 0;
     const customScale = customPos?.scale ?? 1;
     const centerX = sceneX + sceneWidth / 2 + finalX * positionScale;
-    const centerY = sceneY + sceneHeight * MOCHI_SCENE_AVATAR_CENTER_Y_RATIO + finalY * positionScale;
+    const centerY = sceneY + sceneHeight * MOCHI_CARD_SCENE_AVATAR_CENTER_Y_RATIO + finalY * positionScale;
     const itemScale = (item?.scale ?? 1) * customScale;
     const itemWidth = (imageSrc ? 224 : 48) * positionScale * itemScale;
     const itemHeight = (imageSrc ? 96 : 48) * positionScale * itemScale;
@@ -298,13 +299,13 @@ async function renderCardImage(data: CardData, theme: CardTheme): Promise<Blob> 
   ctx.stroke();
   ctx.restore();
 
-  const statY = 312;
-  drawMiniBar(ctx, "Hunger", data.hunger, 16, statY, 96, theme.accentColor, theme.textColor);
-  drawMiniBar(ctx, "Cleanliness", data.cleanliness, 158, statY, 96, theme.accentColor, theme.textColor);
-  drawMiniBar(ctx, "Happiness", data.happiness, 16, statY + 38, 96, theme.accentColor, theme.textColor);
-  drawMiniBar(ctx, "Energy", data.energy, 158, statY + 38, 96, theme.accentColor, theme.textColor);
-  drawText(ctx, "Powered by GenLayer | Mochi", 144, 368, {
-    font: "800 12px Arial",
+  const statY = 478;
+  drawMiniBar(ctx, "Hunger", data.hunger, 44, statY, 150, theme.accentColor, theme.textColor);
+  drawMiniBar(ctx, "Cleanliness", data.cleanliness, 236, statY, 150, theme.accentColor, theme.textColor);
+  drawMiniBar(ctx, "Happiness", data.happiness, 44, statY + 44, 150, theme.accentColor, theme.textColor);
+  drawMiniBar(ctx, "Energy", data.energy, 236, statY + 44, 150, theme.accentColor, theme.textColor);
+  drawText(ctx, "Powered by GenLayer | Mochi", cardCenterX, 556, {
+    font: "800 14px Arial",
     color: theme.textColor,
     alpha: 0.35,
   });

@@ -8,8 +8,8 @@ import { DEFAULT_MOCHI_AVATAR_ID, getMochiAvatar } from "@/lib/data/mochiAvatars
 import { getItemById } from "@/lib/data/itemManifest";
 import { getRoomById } from "@/lib/data/roomManifest";
 import {
-  MOCHI_SCENE_AVATAR_CENTER_Y_PERCENT,
-  MOCHI_SCENE_AVATAR_WIDTH_RATIO,
+  MOCHI_CARD_SCENE_AVATAR_CENTER_Y_PERCENT,
+  MOCHI_CARD_SCENE_AVATAR_WIDTH_RATIO,
   MOCHI_SCENE_REFERENCE_AVATAR_WIDTH,
 } from "@/lib/data/sceneLayout";
 
@@ -116,9 +116,9 @@ function CardScene({
   const room = getRoomById(roomId ?? "starter_room");
   const activeItems = Object.entries(equippedItems ?? {}).filter(([, itemId]) => Boolean(itemId) && !!getItemById(itemId as string));
   const sceneWidth = exportMode ? 232 : 330;
-  const sceneHeight = Math.round(sceneWidth * (exportMode ? 0.75 : 0.9));
-  const avatarWidthRatio = exportMode ? MOCHI_SCENE_AVATAR_WIDTH_RATIO : 0.58;
-  const avatarCenterYPercent = exportMode ? MOCHI_SCENE_AVATAR_CENTER_Y_PERCENT : "66%";
+  const sceneHeight = Math.round(sceneWidth * 0.9);
+  const avatarWidthRatio = MOCHI_CARD_SCENE_AVATAR_WIDTH_RATIO;
+  const avatarCenterYPercent = MOCHI_CARD_SCENE_AVATAR_CENTER_Y_PERCENT;
   const avatarWidth = sceneWidth * avatarWidthRatio;
   const positionScale = avatarWidth / MOCHI_SCENE_REFERENCE_AVATAR_WIDTH;
 
