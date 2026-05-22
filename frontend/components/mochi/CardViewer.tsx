@@ -120,7 +120,7 @@ function CardScene({
   const avatar = getMochiAvatar(avatarId ?? DEFAULT_MOCHI_AVATAR_ID);
   const room = getRoomById(roomId ?? "starter_room");
   const activeItems = Object.entries(equippedItems ?? {}).filter(([, itemId]) => Boolean(itemId) && !!getItemById(itemId as string));
-  const sceneWidth = exportMode ? 232 : 330;
+  const sceneWidth = 330;
   const sceneHeight = sceneWidth;
   const avatarWidthRatio = MOCHI_SCENE_AVATAR_WIDTH_RATIO;
   const avatarCenterYPercent = MOCHI_SCENE_AVATAR_CENTER_Y_PERCENT;
@@ -145,7 +145,7 @@ function CardScene({
       <img
         src={avatar.src}
         alt={avatar.name}
-        className="absolute left-1/2 aspect-square -translate-x-1/2 -translate-y-1/2 object-contain"
+        className="absolute left-1/2 aspect-square object-contain"
         style={{
           top: `calc(${avatarCenterYPercent} + ${avatarY}px)`,
           transform: `translate(calc(-50% + ${avatarX}px), -50%)`,
@@ -357,8 +357,8 @@ export const CardViewer = forwardRef<HTMLDivElement, CardViewerProps>(
         className={!exportMode ? "mochi-nft-card" : undefined}
         style={{
           perspective: exportMode ? "none" : "1000px",
-          width: exportMode ? 288 : "min(430px, calc(100vw - 40px))",
-          height: exportMode ? 384 : undefined,
+          width: exportMode ? 430 : "min(430px, calc(100vw - 40px))",
+          height: exportMode ? 620 : undefined,
           aspectRatio: exportMode ? undefined : "430 / 620",
           cursor: "default",
         }}
