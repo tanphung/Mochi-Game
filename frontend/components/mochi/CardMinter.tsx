@@ -9,6 +9,7 @@ import { DEFAULT_MOCHI_AVATAR_ID, getMochiAvatar } from "@/lib/data/mochiAvatars
 import { getItemById } from "@/lib/data/itemManifest";
 import { getRoomById } from "@/lib/data/roomManifest";
 import {
+  MOCHI_AVATAR_TRANSFORM_ID,
   MOCHI_CARD_SCENE_AVATAR_CENTER_Y_RATIO,
   MOCHI_CARD_SCENE_AVATAR_WIDTH_RATIO,
   MOCHI_SCENE_REFERENCE_AVATAR_WIDTH,
@@ -239,8 +240,14 @@ async function renderCardImage(data: CardData, theme: CardTheme): Promise<Blob> 
   ctx.fillRect(sceneX, sceneY, sceneWidth, sceneHeight);
 
   const avatarWidth = sceneWidth * MOCHI_CARD_SCENE_AVATAR_WIDTH_RATIO;
-  const avatarX = sceneX + sceneWidth / 2 - avatarWidth / 2;
-  const avatarY = sceneY + sceneHeight * MOCHI_CARD_SCENE_AVATAR_CENTER_Y_RATIO - avatarWidth / 2;
+  const positionScale = avatarWidth / MOCHI_SCENE_REFERENCE_AVATAR_WIDTH;
+  const avatarPos = data.itemPositions?.[MOCHI_AVATAR_TRANSFORM_ID];
+  const avatarOffsetX = (avatarPos?.x ?? 0) * positionScale;
+  const avatarOffsetY = (avatarPos?.y ?? 0) * positionScale;
+  const avatarCenterX = sceneX + sceneWidth / 2 + avatarOffsetX;
+  const avatarCenterY = sceneY + sceneHeight * MOCHI_CARD_SCENE_AVATAR_CENTER_Y_RATIO + avatarOffsetY;
+  const avatarX = avatarCenterX - avatarWidth / 2;
+  const avatarY = avatarCenterY - avatarWidth / 2;
   ctx.shadowColor = `${data.petColor}88`;
   ctx.shadowBlur = 18;
   ctx.drawImage(avatarImg, avatarX, avatarY, avatarWidth, avatarWidth);
@@ -250,7 +257,6 @@ async function renderCardImage(data: CardData, theme: CardTheme): Promise<Blob> 
     .filter(([, itemId]) => Boolean(itemId) && !!getItemById(itemId as string))
     .map(([category, itemId]) => ({ category, itemId: itemId as string, item: getItemById(itemId as string) }))
     .sort((a, b) => (a.item?.zIndex ?? 5) - (b.item?.zIndex ?? 5));
-  const positionScale = avatarWidth / MOCHI_SCENE_REFERENCE_AVATAR_WIDTH;
 
   for (const active of activeItems) {
     const item = active.item;
@@ -259,8 +265,8 @@ async function renderCardImage(data: CardData, theme: CardTheme): Promise<Blob> 
     const finalX = customPos?.x ?? item?.offsetX ?? 0;
     const finalY = customPos?.y ?? item?.offsetY ?? 0;
     const customScale = customPos?.scale ?? 1;
-    const centerX = sceneX + sceneWidth / 2 + finalX * positionScale;
-    const centerY = sceneY + sceneHeight * MOCHI_CARD_SCENE_AVATAR_CENTER_Y_RATIO + finalY * positionScale;
+    const centerX = avatarCenterX + finalX * positionScale;
+    const centerY = avatarCenterY + finalY * positionScale;
     const itemScale = (item?.scale ?? 1) * customScale;
     const itemWidth = (imageSrc ? 224 : 48) * positionScale * itemScale;
     const itemHeight = (imageSrc ? 96 : 48) * positionScale * itemScale;
@@ -271,7 +277,7 @@ async function renderCardImage(data: CardData, theme: CardTheme): Promise<Blob> 
     if (imageSrc) {
       const img = await loadImage(imageSrc).catch(() => null);
       if (img) {
-        ctx.drawImage(img, -itemWidth / 2, -itemHeight / 2, itemWidth, itemHeight);
+        drawImageContain(ctx, img, -itemWidth / 2, -itemHeight / 2, itemWidth, itemHeight);
         ctx.restore();
         continue;
       }

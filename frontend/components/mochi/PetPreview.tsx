@@ -7,6 +7,7 @@ import { getItemById } from "@/lib/data/itemManifest";
 import { getRoomById } from "@/lib/data/roomManifest";
 import { getMochiAvatar } from "@/lib/data/mochiAvatars";
 import {
+  MOCHI_AVATAR_TRANSFORM_ID,
   MOCHI_SCENE_AVATAR_CENTER_Y_PERCENT,
   MOCHI_SCENE_AVATAR_WIDTH_RATIO,
   MOCHI_SCENE_REFERENCE_AVATAR_WIDTH,
@@ -59,13 +60,16 @@ function AccessoryLayer({ itemId, category, draggable = false }: AccessoryProps)
   const imageSrc = item?.image?.startsWith("/") ? item.image : null;
 
   const customPos = itemPositions[itemId];
+  const avatarPos = itemPositions[MOCHI_AVATAR_TRANSFORM_ID];
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   const [dragging, setDragging] = useState(false);
 
   const baseX = item?.offsetX ?? 0;
   const baseY = item?.offsetY ?? 0;
-  const finalX = customPos?.x ?? baseX;
-  const finalY = customPos?.y ?? baseY;
+  const itemX = customPos?.x ?? baseX;
+  const itemY = customPos?.y ?? baseY;
+  const finalX = (avatarPos?.x ?? 0) + itemX;
+  const finalY = (avatarPos?.y ?? 0) + itemY;
   const finalScale = customPos?.scale ?? 1;
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
@@ -73,9 +77,9 @@ function AccessoryLayer({ itemId, category, draggable = false }: AccessoryProps)
     e.preventDefault();
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
-    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: finalX, origY: finalY };
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: itemX, origY: itemY };
     setDragging(true);
-  }, [draggable, finalX, finalY]);
+  }, [draggable, itemX, itemY]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current || !draggable) return;
@@ -151,15 +155,56 @@ interface PetPreviewProps {
 }
 
 export function PetPreview({ draggable = false }: PetPreviewProps) {
-  const { petAvatarId, petColor, equippedItems, hunger, energy, cleanliness, happiness, roomId } =
+  const {
+    petAvatarId,
+    petColor,
+    equippedItems,
+    hunger,
+    energy,
+    cleanliness,
+    happiness,
+    roomId,
+    itemPositions,
+    setItemPosition,
+  } =
     usePetStore();
 
   const avatar = useMemo(() => getMochiAvatar(petAvatarId), [petAvatarId]);
   const room = useMemo(() => getRoomById(roomId), [roomId]);
+  const avatarPos = itemPositions[MOCHI_AVATAR_TRANSFORM_ID];
+  const avatarX = avatarPos?.x ?? 0;
+  const avatarY = avatarPos?.y ?? 0;
+  const avatarDragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const [avatarDragging, setAvatarDragging] = useState(false);
   const overlay = useMemo(
     () => getMoodOverlay(hunger, energy, cleanliness, happiness),
     [hunger, energy, cleanliness, happiness],
   );
+
+  const onAvatarPointerDown = useCallback((e: React.PointerEvent) => {
+    if (!draggable) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    avatarDragRef.current = { startX: e.clientX, startY: e.clientY, origX: avatarX, origY: avatarY };
+    setAvatarDragging(true);
+  }, [avatarX, avatarY, draggable]);
+
+  const onAvatarPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!avatarDragRef.current || !draggable) return;
+    const dx = e.clientX - avatarDragRef.current.startX;
+    const dy = e.clientY - avatarDragRef.current.startY;
+    setItemPosition(
+      MOCHI_AVATAR_TRANSFORM_ID,
+      avatarDragRef.current.origX + dx,
+      avatarDragRef.current.origY + dy,
+    );
+  }, [draggable, setItemPosition]);
+
+  const onAvatarPointerUp = useCallback(() => {
+    avatarDragRef.current = null;
+    setAvatarDragging(false);
+  }, []);
 
   return (
     <div
@@ -192,15 +237,24 @@ export function PetPreview({ draggable = false }: PetPreviewProps) {
 
       <div
         className="absolute flex items-center justify-center transition-all duration-500"
+        onPointerDown={onAvatarPointerDown}
+        onPointerMove={onAvatarPointerMove}
+        onPointerUp={onAvatarPointerUp}
+        onPointerCancel={onAvatarPointerUp}
+        onLostPointerCapture={onAvatarPointerUp}
         style={{
           width: `${MOCHI_SCENE_AVATAR_WIDTH_RATIO * 100}%`,
           maxWidth: MOCHI_SCENE_REFERENCE_AVATAR_WIDTH,
           aspectRatio: "1",
           left: "50%",
           top: MOCHI_SCENE_AVATAR_CENTER_Y_PERCENT,
-          transform: "translate(-50%, -50%)",
+          transform: `translate(calc(-50% + ${avatarX}px), calc(-50% + ${avatarY}px))`,
           filter: `drop-shadow(0 0 34px ${petColor}66) drop-shadow(0 18px 24px rgba(0,0,0,0.45))`,
           zIndex: 1,
+          cursor: draggable ? (avatarDragging ? "grabbing" : "grab") : "default",
+          pointerEvents: draggable ? "auto" : "none",
+          transition: avatarDragging ? "none" : undefined,
+          userSelect: "none",
         }}
       >
         <img
@@ -209,6 +263,9 @@ export function PetPreview({ draggable = false }: PetPreviewProps) {
           className="h-full w-full object-contain select-none"
           draggable={false}
         />
+        {draggable && !avatarDragging && (
+          <span className="absolute -right-1 top-1/4 h-3 w-3 rounded-full border border-white/40 bg-teal-300" />
+        )}
       </div>
 
       {(["necklace", "handheld", "hat", "glasses"] as const).map((cat) => {

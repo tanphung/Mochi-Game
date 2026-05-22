@@ -4,6 +4,7 @@ export const MOCHI_SCENE_AVATAR_CENTER_Y_PERCENT = "70%";
 export const MOCHI_SCENE_REFERENCE_AVATAR_WIDTH = 508;
 export const MOCHI_ROOM_ASPECT_RATIO = "1 / 1";
 export const MOCHI_ROOM_MAX_WIDTH = 760;
+export const MOCHI_AVATAR_TRANSFORM_ID = "__mochi_avatar__";
 
 export const MOCHI_CARD_SCENE_AVATAR_WIDTH_RATIO = 0.58;
 export const MOCHI_CARD_SCENE_AVATAR_CENTER_Y_RATIO = 0.66;

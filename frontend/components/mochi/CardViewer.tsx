@@ -8,6 +8,7 @@ import { DEFAULT_MOCHI_AVATAR_ID, getMochiAvatar } from "@/lib/data/mochiAvatars
 import { getItemById } from "@/lib/data/itemManifest";
 import { getRoomById } from "@/lib/data/roomManifest";
 import {
+  MOCHI_AVATAR_TRANSFORM_ID,
   MOCHI_CARD_SCENE_AVATAR_CENTER_Y_PERCENT,
   MOCHI_CARD_SCENE_AVATAR_WIDTH_RATIO,
   MOCHI_SCENE_REFERENCE_AVATAR_WIDTH,
@@ -65,8 +66,9 @@ function CardAccessory({
   const label = item?.name.slice(0, 2).toUpperCase() ?? category.slice(0, 2).toUpperCase();
   const imageSrc = item?.image?.startsWith("/") ? item.image : null;
   const customPos = itemPositions?.[itemId];
-  const finalX = customPos?.x ?? item?.offsetX ?? 0;
-  const finalY = customPos?.y ?? item?.offsetY ?? 0;
+  const avatarPos = itemPositions?.[MOCHI_AVATAR_TRANSFORM_ID];
+  const finalX = (avatarPos?.x ?? 0) + (customPos?.x ?? item?.offsetX ?? 0);
+  const finalY = (avatarPos?.y ?? 0) + (customPos?.y ?? item?.offsetY ?? 0);
   const finalScale = customPos?.scale ?? 1;
 
   return (
@@ -121,6 +123,9 @@ function CardScene({
   const avatarCenterYPercent = MOCHI_CARD_SCENE_AVATAR_CENTER_Y_PERCENT;
   const avatarWidth = sceneWidth * avatarWidthRatio;
   const positionScale = avatarWidth / MOCHI_SCENE_REFERENCE_AVATAR_WIDTH;
+  const avatarPos = itemPositions?.[MOCHI_AVATAR_TRANSFORM_ID];
+  const avatarX = (avatarPos?.x ?? 0) * positionScale;
+  const avatarY = (avatarPos?.y ?? 0) * positionScale;
 
   return (
     <div
@@ -140,7 +145,8 @@ function CardScene({
         alt={avatar.name}
         className="absolute left-1/2 aspect-square -translate-x-1/2 -translate-y-1/2 object-contain"
         style={{
-          top: avatarCenterYPercent,
+          top: `calc(${avatarCenterYPercent} + ${avatarY}px)`,
+          transform: `translate(calc(-50% + ${avatarX}px), -50%)`,
           width: `${avatarWidthRatio * 100}%`,
           filter: `drop-shadow(0 0 18px ${color}88) drop-shadow(0 10px 14px rgba(0,0,0,0.45))`,
           zIndex: 1,
