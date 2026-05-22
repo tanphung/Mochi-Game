@@ -9,10 +9,13 @@ import { DEFAULT_MOCHI_AVATAR_ID, getMochiAvatar } from "@/lib/data/mochiAvatars
 import { getItemById } from "@/lib/data/itemManifest";
 import { getRoomById } from "@/lib/data/roomManifest";
 import {
+  MOCHI_ACCESSORY_FALLBACK_SIZE,
+  MOCHI_ACCESSORY_IMAGE_HEIGHT,
+  MOCHI_ACCESSORY_IMAGE_WIDTH,
   MOCHI_AVATAR_TRANSFORM_ID,
-  MOCHI_CARD_SCENE_AVATAR_CENTER_Y_RATIO,
-  MOCHI_CARD_SCENE_AVATAR_WIDTH_RATIO,
-  MOCHI_SCENE_REFERENCE_AVATAR_WIDTH,
+  MOCHI_ROOM_MAX_WIDTH,
+  MOCHI_SCENE_AVATAR_CENTER_Y_RATIO,
+  MOCHI_SCENE_AVATAR_WIDTH_RATIO,
 } from "@/lib/data/sceneLayout";
 import { MintedCard } from "@/lib/contracts/MochiPet";
 import { error as toastError, success } from "@/lib/utils/toast";
@@ -166,7 +169,7 @@ async function renderCardImage(data: CardData, theme: CardTheme): Promise<Blob> 
   const canvas = document.createElement("canvas");
   const exportScale = 2;
   const cardWidth = 430;
-  const cardHeight = 573;
+  const cardHeight = 620;
   canvas.width = cardWidth * exportScale;
   canvas.height = cardHeight * exportScale;
 
@@ -208,9 +211,9 @@ async function renderCardImage(data: CardData, theme: CardTheme): Promise<Blob> 
   drawText(ctx, `Level ${data.level}`, cardCenterX, 104, { font: "800 19px Arial", color: theme.textColor, alpha: 0.76 });
 
   const sceneWidth = 330;
-  const sceneHeight = Math.round(sceneWidth * 0.9);
+  const sceneHeight = sceneWidth;
   const sceneX = (cardWidth - sceneWidth) / 2;
-  const sceneY = 150;
+  const sceneY = 135;
   ctx.save();
   roundRect(ctx, sceneX, sceneY, sceneWidth, sceneHeight, 12);
   ctx.clip();
@@ -239,13 +242,13 @@ async function renderCardImage(data: CardData, theme: CardTheme): Promise<Blob> 
   ctx.fillStyle = bottomShade;
   ctx.fillRect(sceneX, sceneY, sceneWidth, sceneHeight);
 
-  const avatarWidth = sceneWidth * MOCHI_CARD_SCENE_AVATAR_WIDTH_RATIO;
-  const positionScale = avatarWidth / MOCHI_SCENE_REFERENCE_AVATAR_WIDTH;
+  const avatarWidth = sceneWidth * MOCHI_SCENE_AVATAR_WIDTH_RATIO;
+  const positionScale = sceneWidth / MOCHI_ROOM_MAX_WIDTH;
   const avatarPos = data.itemPositions?.[MOCHI_AVATAR_TRANSFORM_ID];
   const avatarOffsetX = (avatarPos?.x ?? 0) * positionScale;
   const avatarOffsetY = (avatarPos?.y ?? 0) * positionScale;
   const avatarCenterX = sceneX + sceneWidth / 2 + avatarOffsetX;
-  const avatarCenterY = sceneY + sceneHeight * MOCHI_CARD_SCENE_AVATAR_CENTER_Y_RATIO + avatarOffsetY;
+  const avatarCenterY = sceneY + sceneHeight * MOCHI_SCENE_AVATAR_CENTER_Y_RATIO + avatarOffsetY;
   const avatarX = avatarCenterX - avatarWidth / 2;
   const avatarY = avatarCenterY - avatarWidth / 2;
   ctx.shadowColor = `${data.petColor}88`;
@@ -268,8 +271,8 @@ async function renderCardImage(data: CardData, theme: CardTheme): Promise<Blob> 
     const centerX = avatarCenterX + finalX * positionScale;
     const centerY = avatarCenterY + finalY * positionScale;
     const itemScale = (item?.scale ?? 1) * customScale;
-    const itemWidth = (imageSrc ? 224 : 48) * positionScale * itemScale;
-    const itemHeight = (imageSrc ? 96 : 48) * positionScale * itemScale;
+    const itemWidth = (imageSrc ? MOCHI_ACCESSORY_IMAGE_WIDTH : MOCHI_ACCESSORY_FALLBACK_SIZE) * positionScale * itemScale;
+    const itemHeight = (imageSrc ? MOCHI_ACCESSORY_IMAGE_HEIGHT : MOCHI_ACCESSORY_FALLBACK_SIZE) * positionScale * itemScale;
 
     ctx.save();
     ctx.translate(centerX, centerY);
@@ -305,12 +308,12 @@ async function renderCardImage(data: CardData, theme: CardTheme): Promise<Blob> 
   ctx.stroke();
   ctx.restore();
 
-  const statY = 478;
+  const statY = 512;
   drawMiniBar(ctx, "Hunger", data.hunger, 44, statY, 150, theme.accentColor, theme.textColor);
   drawMiniBar(ctx, "Cleanliness", data.cleanliness, 236, statY, 150, theme.accentColor, theme.textColor);
   drawMiniBar(ctx, "Happiness", data.happiness, 44, statY + 44, 150, theme.accentColor, theme.textColor);
   drawMiniBar(ctx, "Energy", data.energy, 236, statY + 44, 150, theme.accentColor, theme.textColor);
-  drawText(ctx, "Powered by GenLayer | Mochi", cardCenterX, 556, {
+  drawText(ctx, "Powered by GenLayer | Mochi", cardCenterX, 603, {
     font: "800 14px Arial",
     color: theme.textColor,
     alpha: 0.35,

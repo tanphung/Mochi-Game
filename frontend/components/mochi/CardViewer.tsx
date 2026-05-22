@@ -8,10 +8,13 @@ import { DEFAULT_MOCHI_AVATAR_ID, getMochiAvatar } from "@/lib/data/mochiAvatars
 import { getItemById } from "@/lib/data/itemManifest";
 import { getRoomById } from "@/lib/data/roomManifest";
 import {
+  MOCHI_ACCESSORY_FALLBACK_SIZE,
+  MOCHI_ACCESSORY_IMAGE_HEIGHT,
+  MOCHI_ACCESSORY_IMAGE_WIDTH,
   MOCHI_AVATAR_TRANSFORM_ID,
-  MOCHI_CARD_SCENE_AVATAR_CENTER_Y_PERCENT,
-  MOCHI_CARD_SCENE_AVATAR_WIDTH_RATIO,
-  MOCHI_SCENE_REFERENCE_AVATAR_WIDTH,
+  MOCHI_ROOM_MAX_WIDTH,
+  MOCHI_SCENE_AVATAR_CENTER_Y_PERCENT,
+  MOCHI_SCENE_AVATAR_WIDTH_RATIO,
 } from "@/lib/data/sceneLayout";
 
 export interface CardData {
@@ -76,8 +79,8 @@ function CardAccessory({
       className="absolute left-1/2 grid place-items-center text-[9px] font-black text-white shadow-lg"
       style={{
         top: centerYPercent,
-        width: imageSrc ? 224 * positionScale : 48 * positionScale,
-        height: imageSrc ? 96 * positionScale : 48 * positionScale,
+        width: imageSrc ? MOCHI_ACCESSORY_IMAGE_WIDTH * positionScale : MOCHI_ACCESSORY_FALLBACK_SIZE * positionScale,
+        height: imageSrc ? MOCHI_ACCESSORY_IMAGE_HEIGHT * positionScale : MOCHI_ACCESSORY_FALLBACK_SIZE * positionScale,
         transform: `translate(calc(-50% + ${finalX * positionScale}px), calc(-50% + ${finalY * positionScale}px)) scale(${(item?.scale ?? 1) * finalScale}) rotate(${item?.rotation ?? 0}deg)`,
         zIndex: item?.zIndex ?? 5,
       }}
@@ -118,11 +121,10 @@ function CardScene({
   const room = getRoomById(roomId ?? "starter_room");
   const activeItems = Object.entries(equippedItems ?? {}).filter(([, itemId]) => Boolean(itemId) && !!getItemById(itemId as string));
   const sceneWidth = exportMode ? 232 : 330;
-  const sceneHeight = Math.round(sceneWidth * 0.9);
-  const avatarWidthRatio = MOCHI_CARD_SCENE_AVATAR_WIDTH_RATIO;
-  const avatarCenterYPercent = MOCHI_CARD_SCENE_AVATAR_CENTER_Y_PERCENT;
-  const avatarWidth = sceneWidth * avatarWidthRatio;
-  const positionScale = avatarWidth / MOCHI_SCENE_REFERENCE_AVATAR_WIDTH;
+  const sceneHeight = sceneWidth;
+  const avatarWidthRatio = MOCHI_SCENE_AVATAR_WIDTH_RATIO;
+  const avatarCenterYPercent = MOCHI_SCENE_AVATAR_CENTER_Y_PERCENT;
+  const positionScale = sceneWidth / MOCHI_ROOM_MAX_WIDTH;
   const avatarPos = itemPositions?.[MOCHI_AVATAR_TRANSFORM_ID];
   const avatarX = (avatarPos?.x ?? 0) * positionScale;
   const avatarY = (avatarPos?.y ?? 0) * positionScale;
@@ -357,7 +359,7 @@ export const CardViewer = forwardRef<HTMLDivElement, CardViewerProps>(
           perspective: exportMode ? "none" : "1000px",
           width: exportMode ? 288 : "min(430px, calc(100vw - 40px))",
           height: exportMode ? 384 : undefined,
-          aspectRatio: exportMode ? undefined : "3 / 4",
+          aspectRatio: exportMode ? undefined : "430 / 620",
           cursor: "default",
         }}
         aria-label={autoRotate ? "Auto rotating Mochi card" : undefined}
