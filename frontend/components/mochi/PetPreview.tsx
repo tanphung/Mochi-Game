@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Home } from "lucide-react";
-import { usePetStore } from "@/lib/store/petStore";
+import { ITEM_SCALE_MAX, ITEM_SCALE_MIN, ITEM_SCALE_STEP, usePetStore } from "@/lib/store/petStore";
 import { getItemById } from "@/lib/data/itemManifest";
 import { getRoomById } from "@/lib/data/roomManifest";
 import { getMochiAvatar } from "@/lib/data/mochiAvatars";
@@ -53,7 +53,7 @@ interface AccessoryProps {
 }
 
 function AccessoryLayer({ itemId, category, draggable = false }: AccessoryProps) {
-  const { itemPositions, setItemPosition } = usePetStore();
+  const { itemPositions, setItemPosition, setItemScale } = usePetStore();
   const item = getItemById(itemId);
   const display = item?.name?.slice(0, 2).toUpperCase() ?? category.slice(0, 2).toUpperCase();
   const imageSrc = item?.image?.startsWith("/") ? item.image : null;
@@ -66,6 +66,7 @@ function AccessoryLayer({ itemId, category, draggable = false }: AccessoryProps)
   const baseY = item?.offsetY ?? 0;
   const finalX = customPos?.x ?? baseX;
   const finalY = customPos?.y ?? baseY;
+  const finalScale = customPos?.scale ?? 1;
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     if (!draggable) return;
@@ -88,11 +89,23 @@ function AccessoryLayer({ itemId, category, draggable = false }: AccessoryProps)
     setDragging(false);
   }, []);
 
-const style: React.CSSProperties = {
+  const onWheel = useCallback((e: React.WheelEvent) => {
+    if (!draggable) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const direction = e.deltaY < 0 ? 1 : -1;
+    const nextScale = Math.min(
+      ITEM_SCALE_MAX,
+      Math.max(ITEM_SCALE_MIN, finalScale + direction * ITEM_SCALE_STEP),
+    );
+    setItemScale(itemId, nextScale);
+  }, [draggable, finalScale, itemId, setItemScale]);
+
+  const style: React.CSSProperties = {
     position: "absolute",
     left: "50%",
     top: MOCHI_SCENE_AVATAR_CENTER_Y_PERCENT,
-    transform: `translate(calc(-50% + ${finalX}px), calc(-50% + ${finalY}px)) scale(${item?.scale ?? 1}) rotate(${item?.rotation ?? 0}deg)`,
+    transform: `translate(calc(-50% + ${finalX}px), calc(-50% + ${finalY}px)) scale(${(item?.scale ?? 1) * finalScale}) rotate(${item?.rotation ?? 0}deg)`,
     zIndex: item?.zIndex ?? 5,
     pointerEvents: draggable ? "auto" : "none",
     userSelect: "none",
@@ -108,6 +121,7 @@ const style: React.CSSProperties = {
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       onLostPointerCapture={onPointerUp}
+      onWheel={onWheel}
       className={`grid place-items-center text-[11px] font-black text-white/85 shadow-lg ${
         imageSrc
           ? "h-24 w-56"
@@ -157,7 +171,7 @@ export function PetPreview({ draggable = false }: PetPreviewProps) {
         style={{
           zIndex: 0,
           background: room.image
-            ? `linear-gradient(180deg, rgb(4 6 12 / 0.08), rgb(4 6 12 / 0.24)), url("${room.image}") center / cover`
+            ? `linear-gradient(180deg, rgb(4 6 12 / 0.08), rgb(4 6 12 / 0.20)), url("${room.image}") center / contain no-repeat, ${room.background}`
             : room.background,
         }}
         aria-hidden

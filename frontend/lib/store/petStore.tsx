@@ -61,6 +61,16 @@ export interface EquippedItems {
   handheld: string | null;
 }
 
+export interface ItemTransform {
+  x?: number;
+  y?: number;
+  scale?: number;
+}
+
+export const ITEM_SCALE_MIN = 0.35;
+export const ITEM_SCALE_MAX = 2.5;
+export const ITEM_SCALE_STEP = 0.05;
+
 interface PetState {
   isLoading: boolean;
   hasPetOnChain: boolean;
@@ -87,7 +97,7 @@ interface PetState {
   lastDecayAt: number;
   recentlyUnlocked: string[];
   cooldowns: Record<string, number>;
-  itemPositions: Record<string, { x: number; y: number }>;
+  itemPositions: Record<string, ItemTransform>;
 }
 
 const COOLDOWN_MS = 3 * 60 * 1000;
@@ -205,6 +215,14 @@ function writeStoredPetMemory(storageKey: string, memory: StoredPetMemory): void
   }
 }
 
+function readFiniteNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function clampItemScale(scale: number): number {
+  return Math.min(ITEM_SCALE_MAX, Math.max(ITEM_SCALE_MIN, scale));
+}
+
 interface PetStoreContext extends PetState {
   // Computed
   displayName: string;
@@ -227,6 +245,7 @@ interface PetStoreContext extends PetState {
   applyDecay: () => void;
   clearRecentlyUnlocked: () => void;
   setItemPosition: (itemId: string, x: number, y: number) => void;
+  setItemScale: (itemId: string, scale: number) => void;
   resetItemPosition: (itemId: string) => void;
 }
 
@@ -378,17 +397,23 @@ export function PetProvider({ children }: { children: ReactNode }) {
       : new Error("Chat transaction completed, but get_pet could not be read.");
   };
 
-  const parseItemPositions = (raw: unknown): Record<string, { x: number; y: number }> => {
+  const parseItemPositions = (raw: unknown): Record<string, ItemTransform> => {
     if (typeof raw !== "string" || !raw.trim()) return {};
     try {
       const parsed = JSON.parse(raw) as unknown;
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-      const next: Record<string, { x: number; y: number }> = {};
+      const next: Record<string, ItemTransform> = {};
       Object.entries(parsed as Record<string, unknown>).forEach(([itemId, value]) => {
         if (!value || typeof value !== "object" || Array.isArray(value)) return;
         const pos = value as Record<string, unknown>;
-        if (typeof pos.x !== "number" || typeof pos.y !== "number") return;
-        next[itemId] = { x: pos.x, y: pos.y };
+        const x = readFiniteNumber(pos.x);
+        const y = readFiniteNumber(pos.y);
+        const scale = readFiniteNumber(pos.scale);
+        const transform: ItemTransform = {};
+        if (x !== undefined) transform.x = x;
+        if (y !== undefined) transform.y = y;
+        if (scale !== undefined) transform.scale = clampItemScale(scale);
+        if (Object.keys(transform).length > 0) next[itemId] = transform;
       });
       return next;
     } catch {
@@ -896,7 +921,23 @@ export function PetProvider({ children }: { children: ReactNode }) {
   const setItemPosition = useCallback((itemId: string, x: number, y: number) => {
     setState((prev) => ({
       ...prev,
-      itemPositions: { ...prev.itemPositions, [itemId]: { x, y } },
+      itemPositions: {
+        ...prev.itemPositions,
+        [itemId]: { ...(prev.itemPositions[itemId] ?? {}), x, y },
+      },
+    }));
+  }, []);
+
+  const setItemScale = useCallback((itemId: string, scale: number) => {
+    setState((prev) => ({
+      ...prev,
+      itemPositions: {
+        ...prev.itemPositions,
+        [itemId]: {
+          ...(prev.itemPositions[itemId] ?? {}),
+          scale: clampItemScale(scale),
+        },
+      },
     }));
   }, []);
 
@@ -931,6 +972,7 @@ export function PetProvider({ children }: { children: ReactNode }) {
     applyDecay,
     clearRecentlyUnlocked,
     setItemPosition,
+    setItemScale,
     resetItemPosition,
   };
 

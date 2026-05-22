@@ -2,7 +2,7 @@
 
 import { forwardRef } from "react";
 import { MessageCircle, Sparkles, Trophy, Zap } from "lucide-react";
-import { EquippedItems, usePetStore } from "@/lib/store/petStore";
+import { EquippedItems, ItemTransform, usePetStore } from "@/lib/store/petStore";
 import { getThemeForLevel, CardTheme } from "@/lib/data/cardThemes";
 import { DEFAULT_MOCHI_AVATAR_ID, getMochiAvatar } from "@/lib/data/mochiAvatars";
 import { getItemById } from "@/lib/data/itemManifest";
@@ -27,7 +27,7 @@ export interface CardData {
   totalActions?: number;
   totalChats?: number;
   equippedItems?: EquippedItems;
-  itemPositions?: Record<string, { x: number; y: number }>;
+  itemPositions?: Record<string, ItemTransform>;
   roomId?: string;
 }
 
@@ -57,7 +57,7 @@ function CardAccessory({
 }: {
   itemId: string;
   category: string;
-  itemPositions?: Record<string, { x: number; y: number }>;
+  itemPositions?: Record<string, ItemTransform>;
   positionScale: number;
   centerYPercent: string;
 }) {
@@ -67,6 +67,7 @@ function CardAccessory({
   const customPos = itemPositions?.[itemId];
   const finalX = customPos?.x ?? item?.offsetX ?? 0;
   const finalY = customPos?.y ?? item?.offsetY ?? 0;
+  const finalScale = customPos?.scale ?? 1;
 
   return (
     <span
@@ -75,7 +76,7 @@ function CardAccessory({
         top: centerYPercent,
         width: imageSrc ? 224 * positionScale : 48 * positionScale,
         height: imageSrc ? 96 * positionScale : 48 * positionScale,
-        transform: `translate(calc(-50% + ${finalX * positionScale}px), calc(-50% + ${finalY * positionScale}px)) scale(${item?.scale ?? 1}) rotate(${item?.rotation ?? 0}deg)`,
+        transform: `translate(calc(-50% + ${finalX * positionScale}px), calc(-50% + ${finalY * positionScale}px)) scale(${(item?.scale ?? 1) * finalScale}) rotate(${item?.rotation ?? 0}deg)`,
         zIndex: item?.zIndex ?? 5,
       }}
       title={item?.name ?? category}
@@ -107,7 +108,7 @@ function CardScene({
   avatarId?: string;
   color: string;
   equippedItems?: EquippedItems;
-  itemPositions?: Record<string, { x: number; y: number }>;
+  itemPositions?: Record<string, ItemTransform>;
   roomId?: string;
   exportMode?: boolean;
 }) {
@@ -129,7 +130,7 @@ function CardScene({
         height: exportMode ? sceneHeight : undefined,
         aspectRatio: `${sceneWidth} / ${sceneHeight}`,
         background: room.image
-          ? `linear-gradient(180deg, rgb(4 6 12 / 0.08), rgb(4 6 12 / 0.24)), url("${room.image}") center bottom / cover`
+          ? `linear-gradient(180deg, rgb(4 6 12 / 0.08), rgb(4 6 12 / 0.20)), url("${room.image}") center / contain no-repeat, ${room.background}`
           : room.background,
       }}
     >

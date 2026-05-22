@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { Download, IdCard, X } from "lucide-react";
-import { usePetStore } from "@/lib/store/petStore";
+import { ItemTransform, usePetStore } from "@/lib/store/petStore";
 import { CardViewer, CardData } from "./CardViewer";
 import { CardTheme, getThemeForLevel } from "@/lib/data/cardThemes";
 import { DEFAULT_MOCHI_AVATAR_ID, getMochiAvatar } from "@/lib/data/mochiAvatars";
@@ -24,7 +24,7 @@ interface SnapshotData {
   petColor?: string;
   stats?: { hunger: number; energy: number; cleanliness: number; happiness: number };
   equippedItems?: CardData["equippedItems"];
-  itemPositions?: Record<string, { x: number; y: number }>;
+  itemPositions?: Record<string, ItemTransform>;
   roomId?: string;
   mintedAt?: string;
   totalActions?: number;
@@ -105,7 +105,7 @@ function drawText(
   ctx.restore();
 }
 
-function drawImageCover(
+function drawImageContain(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
   x: number,
@@ -115,20 +115,16 @@ function drawImageCover(
 ) {
   const imageRatio = img.naturalWidth / img.naturalHeight;
   const targetRatio = width / height;
-  let sx = 0;
-  let sy = 0;
-  let sw = img.naturalWidth;
-  let sh = img.naturalHeight;
+  let drawWidth = width;
+  let drawHeight = height;
 
   if (imageRatio > targetRatio) {
-    sw = img.naturalHeight * targetRatio;
-    sx = (img.naturalWidth - sw) / 2;
+    drawHeight = width / imageRatio;
   } else {
-    sh = img.naturalWidth / targetRatio;
-    sy = (img.naturalHeight - sh) / 2;
+    drawWidth = height * imageRatio;
   }
 
-  ctx.drawImage(img, sx, sy, sw, sh, x, y, width, height);
+  ctx.drawImage(img, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
 }
 
 function drawMiniBar(
@@ -217,7 +213,12 @@ async function renderCardImage(data: CardData, theme: CardTheme): Promise<Blob> 
   roundRect(ctx, sceneX, sceneY, sceneWidth, sceneHeight, 12);
   ctx.clip();
   if (roomImg) {
-    drawImageCover(ctx, roomImg, sceneX, sceneY, sceneWidth, sceneHeight);
+    const bg = ctx.createLinearGradient(sceneX, sceneY, sceneX + sceneWidth, sceneY + sceneHeight);
+    bg.addColorStop(0, theme.bgColor);
+    bg.addColorStop(1, data.petColor);
+    ctx.fillStyle = bg;
+    ctx.fillRect(sceneX, sceneY, sceneWidth, sceneHeight);
+    drawImageContain(ctx, roomImg, sceneX, sceneY, sceneWidth, sceneHeight);
   } else {
     const bg = ctx.createLinearGradient(sceneX, sceneY, sceneX + sceneWidth, sceneY + sceneHeight);
     bg.addColorStop(0, theme.bgColor);
@@ -256,9 +257,10 @@ async function renderCardImage(data: CardData, theme: CardTheme): Promise<Blob> 
     const customPos = data.itemPositions?.[active.itemId];
     const finalX = customPos?.x ?? item?.offsetX ?? 0;
     const finalY = customPos?.y ?? item?.offsetY ?? 0;
+    const customScale = customPos?.scale ?? 1;
     const centerX = sceneX + sceneWidth / 2 + finalX * positionScale;
     const centerY = sceneY + sceneHeight * MOCHI_SCENE_AVATAR_CENTER_Y_RATIO + finalY * positionScale;
-    const itemScale = item?.scale ?? 1;
+    const itemScale = (item?.scale ?? 1) * customScale;
     const itemWidth = (imageSrc ? 224 : 48) * positionScale * itemScale;
     const itemHeight = (imageSrc ? 96 : 48) * positionScale * itemScale;
 

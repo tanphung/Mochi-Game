@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Backpack, Cat, Crown, Gem, Glasses, Hand, Home, Save, X } from "lucide-react";
-import { usePetStore } from "@/lib/store/petStore";
+import { ITEM_SCALE_MAX, ITEM_SCALE_MIN, ITEM_SCALE_STEP, usePetStore } from "@/lib/store/petStore";
 import { getItemsByCategory, ItemManifest } from "@/lib/data/itemManifest";
 import { MOCHI_AVATARS } from "@/lib/data/mochiAvatars";
 import { ROOM_MANIFEST } from "@/lib/data/roomManifest";
@@ -34,7 +34,9 @@ export function InventoryEditor({ onClose, inline = false }: Props) {
     equippedItems,
     equipItem,
     unequipItem,
+    itemPositions,
     resetItemPosition,
+    setItemScale,
     roomId,
     setRoom,
     level,
@@ -167,7 +169,7 @@ export function InventoryEditor({ onClose, inline = false }: Props) {
                       className="block aspect-[4/3] border-b border-white/8"
                       style={{
                         background: room.image
-                          ? `linear-gradient(180deg, rgb(4 6 12 / 0.06), rgb(4 6 12 / 0.24)), url("${room.image}") center / cover`
+                          ? `linear-gradient(180deg, rgb(4 6 12 / 0.06), rgb(4 6 12 / 0.20)), url("${room.image}") center / contain no-repeat, ${room.background}`
                           : room.background,
                       }}
                     />
@@ -195,6 +197,7 @@ export function InventoryEditor({ onClose, inline = false }: Props) {
                 const equipped = equippedItems[cat] === item.id;
                 const initials = item.name.slice(0, 2).toUpperCase();
                 const imageSrc = item.image.startsWith("/") ? item.image : null;
+                const itemScale = itemPositions[item.id]?.scale ?? 1;
 
                 return (
                   <div key={item.id} className="space-y-2">
@@ -225,7 +228,23 @@ export function InventoryEditor({ onClose, inline = false }: Props) {
                       )}
                     </button>
                     {equipped && (
-                      <div className="grid grid-cols-2 gap-1">
+                      <div className="space-y-2">
+                        <label className="block rounded-2xl bg-white/[0.05] px-3 py-2">
+                          <span className="mb-1 flex items-center justify-between text-[10px] font-black uppercase text-white/50">
+                            <span>Scale</span>
+                            <span>{Math.round(itemScale * 100)}%</span>
+                          </span>
+                          <input
+                            type="range"
+                            min={ITEM_SCALE_MIN}
+                            max={ITEM_SCALE_MAX}
+                            step={ITEM_SCALE_STEP}
+                            value={itemScale}
+                            onChange={(event) => setItemScale(item.id, Number(event.target.value))}
+                            className="w-full accent-teal-300"
+                          />
+                        </label>
+                        <div className="grid grid-cols-2 gap-1">
                         <button
                           onClick={() => handleResetPosition(item)}
                           className="rounded-full bg-white/[0.06] py-1 text-[10px] font-bold text-white/55 hover:text-white"
@@ -238,6 +257,7 @@ export function InventoryEditor({ onClose, inline = false }: Props) {
                         >
                           Remove
                         </button>
+                        </div>
                       </div>
                     )}
                   </div>
