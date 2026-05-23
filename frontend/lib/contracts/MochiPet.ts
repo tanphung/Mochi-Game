@@ -465,17 +465,6 @@ class MochiPetContract {
     await checkReceipt(makeReadClient(this.account), txHash);
   }
 
-  async setPetColor(hexColor: string): Promise<void> {
-    const client = await makeWriteClient(this.account);
-    const txHash = await client.writeContract({
-      address: this.contractAddress,
-      functionName: "set_pet_color",
-      args: [hexColor],
-      value: BigInt(0),
-    });
-    await checkReceipt(makeReadClient(this.account), txHash);
-  }
-
   async equipItem(category: ItemCategory, itemId: string): Promise<void> {
     const client = await makeWriteClient(this.account);
     const txHash = await client.writeContract({

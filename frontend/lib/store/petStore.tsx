@@ -236,7 +236,6 @@ interface PetStoreContext extends PetState {
   sendChat: (message: string) => Promise<void>;
   setNickname: (nick: string) => Promise<void>;
   setPetAvatar: (avatarId: string) => void;
-  setPetColor: (hex: string) => Promise<void>;
   equipItem: (category: ItemCategory, id: string) => Promise<void>;
   unequipItem: (category: ItemCategory) => Promise<void>;
   setRoom: (roomId: string) => Promise<void>;
@@ -789,25 +788,6 @@ export function PetProvider({ children }: { children: ReactNode }) {
     setState((s) => ({ ...s, petAvatarId: avatarId }));
   }, []);
 
-  // ── setPetColor ────────────────────────────────────────────────────────────
-
-  const setPetColor = useCallback(
-    async (hex: string) => {
-      if (!wallet.address) return;
-      const prev = stateRef.current.petColor;
-      setState((s) => ({ ...s, petColor: hex }));
-      try {
-        await createMochiPetContract(wallet.address).setPetColor(hex);
-        success("Color updated! 🎨");
-        triggerMilestone("first_color");
-      } catch {
-        setState((s) => ({ ...s, petColor: prev }));
-        toastError("Failed to update color");
-      }
-    },
-    [wallet.address, triggerMilestone],
-  );
-
   // ── equipItem ──────────────────────────────────────────────────────────────
 
   const equipItem = useCallback(
@@ -963,7 +943,6 @@ export function PetProvider({ children }: { children: ReactNode }) {
     sendChat,
     setNickname,
     setPetAvatar,
-    setPetColor,
     equipItem,
     unequipItem,
     setRoom,
