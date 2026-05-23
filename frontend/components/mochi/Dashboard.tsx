@@ -10,6 +10,7 @@ import {
   IdCard,
   LogOut,
   MessageCircle,
+  Save,
   Trophy,
   WalletCards,
 } from "lucide-react";
@@ -44,7 +45,7 @@ export function Dashboard() {
   const { address, disconnectWallet } = useWallet();
   const {
     displayName, petNickname, isLoading, setNickname, setRoom, roomId,
-    level, exp,
+    level, exp, isSavingCustomization, saveCustomization,
   } = usePetStore();
 
   const [tab, setTab] = useState<ActiveTab>("home");
@@ -172,6 +173,14 @@ export function Dashboard() {
                       {petNickname ? `${petNickname}'s Room` : "Mochi's Room"}
                     </h2>
                   </div>
+                  <button
+                    onClick={saveCustomization}
+                    disabled={isSavingCustomization}
+                    className="mochi-primary-button px-4 py-2 text-xs"
+                  >
+                    <Save className="h-4 w-4" />
+                    {isSavingCustomization ? "Saving..." : "Save On-chain"}
+                  </button>
                 </div>
 
                 <div
