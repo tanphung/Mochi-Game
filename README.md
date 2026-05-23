@@ -6,13 +6,13 @@
 [![GitHub star chart](https://img.shields.io/github/stars/yeagerai/genlayer-project-boilerplate?style=social)](https://star-history.com/#yeagerai/genlayer-js)
 
 ## 👀 About
-This project includes the boilerplate code for a GenLayer use case implementation, specifically a football bets game.
+This project is **Mochi** — a GenLayer intelligent-contract dApp where each wallet raises an on-chain AI pet companion: feed/play/clean it, chat with it (powered by an on-chain LLM), customize its look, and mint shareable cards.
 
 ## 📦 What's included
 - Basic requirements to deploy and test your intelligent contracts locally
 - Configuration file template
 <!-- - Test functions to write complete end-to-end tests -->
-- An example of an intelligent contract (Football Bets)
+- An intelligent contract for the Mochi pet (`MochiPet`)
 - Example end-to-end tests for the contract provided
 - A production-ready Next.js 15 frontend with TypeScript, TanStack Query, and Radix UI
 
@@ -23,7 +23,7 @@ This project includes the boilerplate code for a GenLayer use case implementatio
 ## 🚀 Steps to run this example
 
 ### 1. Deploy the contract
-   Deploy the contract from `/contracts/football_bets.py` using the GenLayer CLI:
+   Deploy the contract from `/contracts/mochi_pet.py` using the GenLayer CLI:
    1. Choose the network that you want to use (studionet, localnet, or tesnet-*): `genlayer network`
    2. Execute the deploy command `genlayer deploy`. This command is going to execute the deploy script located in `/deploy/deployScript.ts`
 
@@ -59,39 +59,30 @@ This project includes the boilerplate code for a GenLayer use case implementatio
    gltest
    ```
 
-## ⚽ How the Football Bets Contract Works
+## 🐾 How the Mochi Contract Works
 
-The Football Bets contract allows users to create bets for football matches, resolve those bets, and earn points for correct bets. Here's a breakdown of its main functionalities:
+The `MochiPet` contract lets each wallet raise one on-chain AI pet. Here's a breakdown of its main functionalities:
 
-1. Creating Bets:
-   - Users can create a bet for a specific football match by providing the game date, team names, and their predicted winner.
-   - The contract checks if the game has already finished and if the user has already made a bet for this match.
+1. Creating a pet:
+   - A user calls `create_pet` once per address to mint their Mochi with starting stats.
 
-2. Resolving Bets:
-   - After a match has concluded, users can resolve their bets.
-   - The contract fetches the actual match result from a specified URL.
-   - If the Bet was correct, the user earns a point.
+2. Caring actions:
+   - `feed`, `play`, `sleep`, and `clean` adjust the pet's stats (hunger, energy, cleanliness, happiness) and grant EXP, which drives leveling up (levels 1–20).
 
-3. Querying Data:
-   - Users can retrieve all bets.
-   - The contract also allows querying of points, either for all players or for a specific player.
+3. Chatting (AI / non-deterministic):
+   - `chat` sends the owner's message to an on-chain LLM (`gl.nondet.exec_prompt`) with a custom leader/validator equivalence check. User input is sanitized to mitigate prompt injection.
 
-4. Getting Points:
-   - Points are awarded for correct bets.
-   - Users can check their total points or the points of any player.
+4. Customization:
+   - `set_pet_color`, `equip_item` / `unequip_item`, `set_room`, and `save_customization` persist the pet's look (avatar, color, equipped items, room, item positions).
+
+5. Cards:
+   - `mint_card` stores a shareable snapshot card; `get_minted_cards` lists them.
+
+State is stored using GenLayer storage types (`TreeMap`, `@allow_storage` dataclasses, `u32`).
 
 ## 🧪 Tests
 
-This project includes integration tests that interact with the contract deployed in the Studio. These tests cover the main functionalities of the Football Bets contract:
-
-1. Creating a bet
-2. Resolving a bet
-3. Querying bets for a player
-4. Querying points for a player
-
-The tests simulate real-world interactions with the contract, ensuring that it behaves correctly under various scenarios. They use the GenLayer Studio to deploy and interact with the contract, providing a comprehensive check of the contract's functionality in a controlled environment.
-
-To run the tests, use the `gltest` command as mentioned in the "Steps to run this example" section.
+This project includes tests for the contract (see the `/test` folder). With the GenLayer Studio running, run them using the `gltest` command (or `pytest`) as mentioned in the "Steps to run this example" section.
 
 
 ## 💬 Community

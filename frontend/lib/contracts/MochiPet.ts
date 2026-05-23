@@ -546,82 +546,11 @@ class MochiPetContract {
   }
 }
 
-// ── Named exports (15 wrapper functions) ─────────────────────────────
+// ── Factory ──────────────────────────────────────────────────────────
+// The store uses createMochiPetContract(account).<method>() directly.
 
 export function createMochiPetContract(account?: string | null): MochiPetContract {
   return new MochiPetContract(account);
-}
-
-export async function getPet(account?: string): Promise<PetState> {
-  return new MochiPetContract(account).getPet(account);
-}
-
-export async function hasPet(account?: string): Promise<boolean> {
-  return new MochiPetContract(account).hasPet(account);
-}
-
-export async function getMintedCards(account?: string): Promise<MintedCard[]> {
-  return new MochiPetContract(account).getMintedCards(account);
-}
-
-export async function createPet(account: string, nickname: string): Promise<void> {
-  return new MochiPetContract(account).createPet(nickname);
-}
-
-export async function feed(account: string): Promise<void> {
-  return new MochiPetContract(account).feed();
-}
-
-export async function play(account: string): Promise<void> {
-  return new MochiPetContract(account).play();
-}
-
-export async function sleep(account: string): Promise<void> {
-  return new MochiPetContract(account).sleep();
-}
-
-export async function clean(account: string): Promise<void> {
-  return new MochiPetContract(account).clean();
-}
-
-export async function chat(account: string, message: string): Promise<string> {
-  return new MochiPetContract(account).chat(message);
-}
-
-export async function setNickname(account: string, nickname: string): Promise<void> {
-  return new MochiPetContract(account).setNickname(nickname);
-}
-
-export async function setPetColor(account: string, hexColor: string): Promise<void> {
-  return new MochiPetContract(account).setPetColor(hexColor);
-}
-
-export async function equipItem(account: string, category: ItemCategory, itemId: string): Promise<void> {
-  return new MochiPetContract(account).equipItem(category, itemId);
-}
-
-export async function unequipItem(account: string, category: ItemCategory): Promise<void> {
-  return new MochiPetContract(account).unequipItem(category);
-}
-
-export async function setRoom(account: string, roomId: string): Promise<void> {
-  return new MochiPetContract(account).setRoom(roomId);
-}
-
-export async function saveCustomization(
-  account: string,
-  args: {
-    petAvatarId: string;
-    roomId: string;
-    equippedItems: EquippedItems;
-    itemPositions: string;
-  },
-): Promise<void> {
-  return new MochiPetContract(account).saveCustomization(args);
-}
-
-export async function mintCard(account: string, snapshot: string): Promise<void> {
-  return new MochiPetContract(account).mintCard(snapshot);
 }
 
 export { MochiPetContract };
