@@ -35,6 +35,8 @@ interface SnapshotData {
   totalChats?: number;
 }
 
+const CARD_DOWNLOAD_ACCESSORY_VISUAL_SCALE = 1.35;
+
 function parseSnapshot(raw: string): SnapshotData {
   try {
     return JSON.parse(raw) as SnapshotData;
@@ -291,7 +293,7 @@ async function renderCardImage(data: CardData, theme: CardTheme): Promise<Blob> 
     const finalX = customPos?.x ?? item?.offsetX ?? 0;
     const finalY = customPos?.y ?? item?.offsetY ?? 0;
     const customScale = customPos?.scale ?? 1;
-    const itemScale = (item?.scale ?? 1) * customScale;
+    const itemScale = (item?.scale ?? 1) * customScale * CARD_DOWNLOAD_ACCESSORY_VISUAL_SCALE;
     const itemWidth = (imageSrc ? MOCHI_ACCESSORY_IMAGE_WIDTH : MOCHI_ACCESSORY_FALLBACK_SIZE) * positionScale * itemScale;
     const itemHeight = (imageSrc ? MOCHI_ACCESSORY_IMAGE_HEIGHT : MOCHI_ACCESSORY_FALLBACK_SIZE) * positionScale * itemScale;
     const centerX = avatarCenterX + finalX * positionScale;
