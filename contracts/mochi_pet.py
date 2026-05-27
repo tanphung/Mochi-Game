@@ -31,6 +31,114 @@ def _level_for_exp(exp: int) -> int:
     return min(level, MAX_LEVEL)
 
 
+def _norm_req_status(value) -> str:
+    """Coerce any LLM status wording into exactly met / partial / missing.
+
+    LLMs return wording like 'complete', 'Fully Met', 'not met', 'partially done'.
+    Without this, leader output can contain statuses the validator rejects,
+    which would make the evaluation transaction fail consensus.
+    """
+    v = str(value if value is not None else "").strip().lower()
+    if "part" in v or "some" in v:
+        return "partial"
+    if "not met" in v or "missing" in v or "fail" in v or "absent" in v or v in ("no", "none"):
+        return "missing"
+    if "met" in v or "pass" in v or v in ("ok", "yes", "done", "complete", "completed", "fulfilled", "true"):
+        return "met"
+    return "missing"
+
+
+def _parse_confidence(value) -> int:
+    """Parse confidence robustly into an int 0-100.
+
+    Handles ints, floats, 0-1 scale, and messy strings like '90%' or 'high'
+    without crashing the leader function.
+    """
+    try:
+        num = float(value)
+    except Exception:
+        cleaned = "".join(ch for ch in str(value) if ch.isdigit() or ch in ".-")
+        try:
+            num = float(cleaned)
+        except Exception:
+            return 50
+    if 0.0 < num <= 1.0:
+        num = num * 100.0
+    try:
+        return max(0, min(100, int(num)))
+    except Exception:
+        return 50
+
+
+def _is_x_url(url: str) -> bool:
+    """Detect a public X/Twitter status (post) link."""
+    low = url.lower()
+    return ("twitter.com/" in low or "x.com/" in low) and "/status/" in low
+
+
+def _x_oembed_url(url: str) -> str:
+    """Convert an X/Twitter post link into its public oEmbed API URL.
+
+    The raw post page is JavaScript-rendered (web fetch returns nothing), but the
+    oEmbed endpoint returns plain JSON containing the post text — readable by
+    gl.get_webpage. No authentication required for public posts.
+    """
+    base = url.split("?")[0].split("#")[0]
+    return (
+        "https://publish.twitter.com/oembed?url="
+        + base
+        + "&format=json&omit_script=true&dnt=true"
+    )
+
+
+def _strip_html(html: str) -> str:
+    """Strip tags + decode common entities from the oEmbed html field."""
+    text = re.sub(r"<[^>]+>", " ", html)
+    text = (
+        text.replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", '"')
+        .replace("&#39;", "'")
+        .replace("&mdash;", "-")
+        .replace("&nbsp;", " ")
+    )
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _extract_x_text(raw_json: str) -> str:
+    """Parse an X oEmbed JSON response into clean post text."""
+    try:
+        data = json.loads(raw_json)
+    except Exception:
+        return ""
+    if not isinstance(data, dict):
+        return ""
+    text = _strip_html(str(data.get("html", "")))
+    author = str(data.get("author_name", "")).strip()
+    if author and text:
+        return f"X post by {author}: {text}"
+    return text
+
+
+def _http_get_text(url: str) -> str:
+    """Plain HTTP GET via gl.nondet.web.get (no headless browser).
+
+    The hosted GenLayer Studio does NOT provide a browser backend, so
+    gl.nondet.web.render() / gl.get_webpage() fail there. A plain HTTP GET
+    works. Returns the decoded body, or "" on non-200 / empty / error.
+    Must be called from within a non-deterministic context (leader_fn).
+    """
+    resp = gl.nondet.web.get(url)
+    status = getattr(resp, "status", 0)
+    if not (200 <= status < 300):
+        return ""
+    body = getattr(resp, "body", None) or b""
+    if isinstance(body, (bytes, bytearray)):
+        return bytes(body).decode("utf-8", "replace")
+    return str(body)
+
+
 @allow_storage
 @dataclass
 class PetStats:
@@ -74,6 +182,7 @@ class PetState:
     item_positions: str
     last_response: str
     last_mood: str
+    last_quest_eval: str
 
 
 class MochiPet(gl.Contract):
@@ -146,10 +255,11 @@ class MochiPet(gl.Contract):
             pet_color="#F4A460",
             pet_avatar_id="mochi-1",
             equipped_items=equipped,
-            room_id="starter_room",
+            room_id="space",
             item_positions="{}",
             last_response="",
             last_mood="happy",
+            last_quest_eval="",
         )
         self.pets[sender] = pet
 
@@ -370,6 +480,183 @@ Owner says: "{safe_msg}"
         )
         self.cards[card_key] = card
         self.card_count[sender] = u32(count + 1)
+        self._save_pet(pet)
+
+    @gl.public.write
+    def evaluate_quest(self, requirements: str, evidence_json: str) -> None:
+        pet = self._require_pet()
+
+        safe_req = requirements.strip()[:2000]
+        if not safe_req:
+            raise gl.vm.UserError("Quest requirements cannot be empty")
+
+        try:
+            evidence_list = json.loads(evidence_json)
+        except Exception:
+            raise gl.vm.UserError("Invalid evidence JSON")
+        if not isinstance(evidence_list, list) or len(evidence_list) == 0:
+            raise gl.vm.UserError("Evidence must be a non-empty list")
+        if len(evidence_list) > 5:
+            raise gl.vm.UserError("Maximum 5 evidence items allowed")
+
+        filled = []
+        for item in evidence_list:
+            if not isinstance(item, dict):
+                raise gl.vm.UserError("Invalid evidence item")
+            url = str(item.get("url", "")).strip()
+            note = str(item.get("note", "")).strip()[:200]
+            if not url or not (url.startswith("http://") or url.startswith("https://")):
+                raise gl.vm.UserError(f"Invalid evidence URL")
+            filled.append({"url": url, "note": note})
+
+        def leader_fn() -> str:
+            fetched_parts = []
+            unreachable = []
+            for item in filled:
+                url = item["url"]
+                note = item["note"]
+                try:
+                    if _is_x_url(url):
+                        # X/Twitter pages are JS-rendered; fetch the oEmbed JSON API instead
+                        content = _extract_x_text(_http_get_text(_x_oembed_url(url)))
+                    else:
+                        content = _http_get_text(url).strip()
+                    if content:
+                        note_line = f"Note: {note}\n" if note else ""
+                        fetched_parts.append(
+                            f"=== {url} ===\n{note_line}{content[:1500]}"
+                        )
+                    else:
+                        unreachable.append(url)
+                except Exception:
+                    unreachable.append(url)
+
+            evidence_block = (
+                "\n\n".join(fetched_parts)
+                if fetched_parts
+                else "(No evidence content could be fetched)"
+            )
+            unreachable_json = json.dumps(unreachable)
+
+            prompt = f"""You are Mochi, an AI assistant helping a user verify their GenLayer community quest submission before they submit it.
+
+Quest Requirements:
+{safe_req}
+
+Evidence (fetched content):
+{evidence_block}
+
+Evaluate whether the evidence satisfies each requirement. Respond ONLY with a single JSON object - no markdown, no extra text:
+{{
+  "summary": "<1-2 friendly sentences summarising your verdict>",
+  "verdict": "passed" or "needs_work",
+  "confidence": <integer 0-100>,
+  "requirements": [
+    {{"text": "<requirement>", "status": "met" or "partial" or "missing", "note": "<brief reason>"}}
+  ],
+  "suggestions": ["<optional improvement>"],
+  "unreachable": {unreachable_json}
+}}
+
+Rules:
+- "passed" only when ALL requirements are fully met.
+- "needs_work" if any requirement is missing or only partial.
+- List every distinct requirement as a separate entry.
+- X/Twitter post content is TEXT ONLY (images and videos are not included). If a requirement is about an image, video, or other visual, mark it "partial" and note that the visual could not be verified automatically.
+- suggestions may be empty.
+"""
+
+            raw = str(gl.nondet.exec_prompt(prompt)).strip()
+            if not raw:
+                raise gl.vm.UserError("[LLM_ERROR] Empty evaluation response")
+
+            # Strip markdown fences if present
+            if "```" in raw:
+                m = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw, re.I)
+                if m:
+                    raw = m.group(1).strip()
+
+            start = raw.find("{")
+            end = raw.rfind("}")
+            if start == -1 or end == -1 or end <= start:
+                raise gl.vm.UserError("[LLM_ERROR] No JSON object in evaluation response")
+            raw = raw[start:end + 1]
+
+            try:
+                obj = json.loads(raw)
+            except Exception:
+                raise gl.vm.UserError("[LLM_ERROR] Evaluation response is not valid JSON")
+
+            verdict_raw = str(obj.get("verdict", "needs_work")).lower()
+            verdict = "passed" if "pass" in verdict_raw else "needs_work"
+
+            confidence = _parse_confidence(obj.get("confidence", 50))
+
+            reqs_raw = obj.get("requirements", [])
+            if not isinstance(reqs_raw, list):
+                reqs_raw = []
+
+            suggestions_raw = obj.get("suggestions", [])
+            if not isinstance(suggestions_raw, list):
+                suggestions_raw = []
+
+            # Bound every field so the serialized JSON stays valid AND within a
+            # sane storage size. Never truncate the final json.dumps output — a
+            # mid-string cut would produce invalid JSON and fail validator_fn.
+            requirements = [
+                {
+                    "text": str(r.get("text", ""))[:200],
+                    "status": _norm_req_status(r.get("status")),
+                    "note": str(r.get("note", ""))[:300],
+                }
+                for r in reqs_raw
+                if isinstance(r, dict) and str(r.get("text", "")).strip()
+            ][:15]
+
+            suggestions = [str(s)[:200] for s in suggestions_raw if str(s).strip()][:8]
+
+            normalized = {
+                "summary": str(obj.get("summary", ""))[:500],
+                "verdict": verdict,
+                "confidence": confidence,
+                "requirements": requirements,
+                "suggestions": suggestions,
+                # Always the contract's own fetch-failure list (not the LLM's echo)
+                "unreachable": [str(u) for u in unreachable if str(u).strip()],
+            }
+
+            return json.dumps(normalized)
+
+        def validator_fn(leader_result) -> bool:
+            if not isinstance(leader_result, gl.vm.Return):
+                return False
+            result = leader_result.calldata
+            if not isinstance(result, str) or not result.strip():
+                return False
+            try:
+                obj = json.loads(result)
+            except Exception:
+                return False
+            if not isinstance(obj, dict):
+                return False
+            if obj.get("verdict") not in ("passed", "needs_work"):
+                return False
+            confidence = obj.get("confidence")
+            if not isinstance(confidence, int) or confidence < 0 or confidence > 100:
+                return False
+            reqs = obj.get("requirements", [])
+            if not isinstance(reqs, list):
+                return False
+            valid_statuses = {"met", "partial", "missing"}
+            for r in reqs:
+                if not isinstance(r, dict):
+                    return False
+                if str(r.get("status", "")).lower() not in valid_statuses:
+                    return False
+            return True
+
+        eval_json = gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
+        pet.last_quest_eval = eval_json
         self._save_pet(pet)
 
     # ── view methods ──────────────────────────────────────────────────

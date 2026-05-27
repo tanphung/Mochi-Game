@@ -271,7 +271,7 @@ export function InventoryEditor({ onClose, inline = false }: Props) {
       <div className={inline ? "space-y-3" : "px-4 pb-4"}>
         <div
           className="mx-auto w-full overflow-hidden rounded-[28px] border border-white/10"
-          style={{ maxWidth: MOCHI_ROOM_MAX_WIDTH }}
+          style={{ maxWidth: MOCHI_ROOM_MAX_WIDTH * 0.95 }}
         >
           <PetPreview draggable />
         </div>

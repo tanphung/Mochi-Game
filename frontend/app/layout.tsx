@@ -18,8 +18,8 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "GenLayer Football Market",
-  description: "AI-powered football match predictions on GenLayer blockchain. Create bets, make predictions, and compete for points.",
+  title: "Mochi",
+  description: "Customize, raise, mint, and share your on-chain AI pet companion.",
   manifest: "/site.webmanifest",
   icons: {
     icon: [
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#9B6AF6", // GenLayer brand purple
+  themeColor: "#0b0c14",
 };
 
 export default function RootLayout({

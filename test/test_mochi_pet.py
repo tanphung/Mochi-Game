@@ -2,6 +2,7 @@
 Direct mode tests for MochiPet contract.
 Run with: pytest test/test_mochi_pet.py -v
 """
+import json
 import pytest
 from gltest.direct import create_address
 
@@ -9,6 +10,16 @@ from gltest.direct import create_address
 CONTRACT_PATH = "contracts/mochi_pet.py"
 LLM_MOCK_PATTERN = r".*You are Mochi.*"
 LLM_MOCK_RESPONSE = "Meow! I'm so happy to see you!"
+QUEST_LLM_MOCK_RESPONSE = json.dumps({
+    "summary": "Great work! Your submission meets all requirements.",
+    "verdict": "passed",
+    "confidence": 90,
+    "requirements": [
+        {"text": "Write a post on X", "status": "met", "note": "Post found at the URL."},
+    ],
+    "suggestions": [],
+    "unreachable": [],
+})
 
 
 # ── test 1: create pet ───────────────────────────────────────────────
@@ -29,7 +40,7 @@ def test_create_pet(direct_vm, direct_deploy, direct_alice):
     assert int(pet.stats.happiness) == 70
     assert pet.pet_color == "#F4A460"
     assert pet.pet_avatar_id == "mochi-1"
-    assert pet.room_id == "starter_room"
+    assert pet.room_id == "space"
     assert pet.item_positions == "{}"
 
 
@@ -204,7 +215,7 @@ def test_save_customization(direct_vm, direct_deploy, direct_alice):
     positions = '{"glasses_heart":{"x":12,"y":-88}}'
     contract.save_customization(
         "mochi-2",
-        "starter_room",
+        "space",
         "",
         "glasses_heart",
         "",
@@ -215,7 +226,7 @@ def test_save_customization(direct_vm, direct_deploy, direct_alice):
 
     pet = contract.get_pet()
     assert pet.pet_avatar_id == "mochi-2"
-    assert pet.room_id == "starter_room"
+    assert pet.room_id == "space"
     assert pet.equipped_items.glasses == "glasses_heart"
     assert pet.item_positions == positions
 
@@ -234,3 +245,48 @@ def test_mint_card_unique_ids(direct_vm, direct_deploy, direct_alice):
 
     ids = [c.card_id for c in cards_list]
     assert ids[0] != ids[1], "Minted card IDs must be unique"
+
+
+# ── test 12: evaluate_quest stores JSON result ───────────────────────
+
+def test_evaluate_quest_stores_result(direct_vm, direct_deploy, direct_alice):
+    direct_vm.sender = direct_alice
+    contract = direct_deploy(CONTRACT_PATH)
+    contract.create_pet("Pip")
+
+    evidence = json.dumps([{"url": "https://example.com/post", "note": "My submission"}])
+    direct_vm.mock_web(r"https://example\.com/post", "This is my amazing post about Optimistic Democracy...")
+    direct_vm.mock_llm(LLM_MOCK_PATTERN, QUEST_LLM_MOCK_RESPONSE)
+
+    contract.evaluate_quest("Write a post about Optimistic Democracy", evidence)
+
+    pet = contract.get_pet()
+    assert pet.last_quest_eval, "last_quest_eval should be populated after evaluation"
+    result = json.loads(pet.last_quest_eval)
+    assert result["verdict"] == "passed"
+    assert result["confidence"] == 90
+    assert len(result["requirements"]) == 1
+    assert result["requirements"][0]["status"] == "met"
+
+
+# ── test 13: evaluate_quest rejects empty requirements ───────────────
+
+def test_evaluate_quest_rejects_empty_requirements(direct_vm, direct_deploy, direct_alice):
+    direct_vm.sender = direct_alice
+    contract = direct_deploy(CONTRACT_PATH)
+    contract.create_pet("Pip")
+
+    evidence = json.dumps([{"url": "https://example.com/post", "note": ""}])
+    with direct_vm.expect_revert("Quest requirements cannot be empty"):
+        contract.evaluate_quest("   ", evidence)
+
+
+# ── test 14: evaluate_quest rejects bad evidence JSON ────────────────
+
+def test_evaluate_quest_rejects_invalid_evidence(direct_vm, direct_deploy, direct_alice):
+    direct_vm.sender = direct_alice
+    contract = direct_deploy(CONTRACT_PATH)
+    contract.create_pet("Pip")
+
+    with direct_vm.expect_revert("Invalid evidence JSON"):
+        contract.evaluate_quest("Do something", "not-json")

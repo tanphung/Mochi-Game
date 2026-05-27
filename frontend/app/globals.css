@@ -314,11 +314,30 @@
     }
   }
 
+  /* Gentle idle sway for the pet + equipped items on the Home room.
+     Applied to the group wrapping the avatar and accessories so they rock
+     together as one unit, pivoting around the feet (~97% of room height). */
+  .mochi-sway {
+    transform-origin: 50% 97%;
+    animation: mochiSway 3.2s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  @keyframes mochiSway {
+    0%, 100% {
+      transform: rotate(-2.5deg);
+    }
+    50% {
+      transform: rotate(2.5deg);
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .mochi-nft-card,
     .mochi-nft-card-inner,
     .mochi-nft-card-face::before,
-    .mochi-nft-card-face::after {
+    .mochi-nft-card-face::after,
+    .mochi-sway {
       animation: none;
     }
   }

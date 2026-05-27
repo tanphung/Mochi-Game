@@ -11,7 +11,14 @@ import React, {
   ReactNode,
 } from "react";
 import { useWallet } from "@/lib/genlayer/WalletProvider";
-import { createMochiPetContract, MintedCard, ItemCategory } from "@/lib/contracts/MochiPet";
+import {
+  createMochiPetContract,
+  MintedCard,
+  ItemCategory,
+  QuestEvidence,
+  QuestEvaluation,
+  parseQuestEvaluation,
+} from "@/lib/contracts/MochiPet";
 import { getContractAddress } from "@/lib/genlayer/client";
 import {
   ActionType,
@@ -89,6 +96,10 @@ interface PetState {
   lastResponse: string;
   chatHistory: ChatMessage[];
   isChatLoading: boolean;
+  isEvaluating: boolean;
+  lastEvaluation: QuestEvaluation | null;
+  questRequirements: string;
+  questEvidence: QuestEvidence[];
   mintedCards: MintedCard[];
   isMinting: boolean;
   isSavingCustomization: boolean;
@@ -234,6 +245,9 @@ interface PetStoreContext extends PetState {
   createPet: (nickname: string) => Promise<void>;
   performAction: (action: ActionType) => Promise<void>;
   sendChat: (message: string) => Promise<void>;
+  evaluateQuest: (requirements: string, evidence: QuestEvidence[]) => Promise<void>;
+  setQuestRequirements: (value: string) => void;
+  setQuestEvidence: (value: QuestEvidence[] | ((prev: QuestEvidence[]) => QuestEvidence[])) => void;
   setNickname: (nick: string) => Promise<void>;
   setPetAvatar: (avatarId: string) => void;
   equipItem: (category: ItemCategory, id: string) => Promise<void>;
@@ -265,10 +279,14 @@ function makeInitialState(): PetState {
     level: 1,
     exp: 0,
     equippedItems: { hat: null, glasses: null, necklace: null, shirt: null, handheld: null },
-    roomId: "starter_room",
+    roomId: "space",
     lastResponse: "",
     chatHistory: [],
     isChatLoading: false,
+    isEvaluating: false,
+    lastEvaluation: null,
+    questRequirements: "",
+    questEvidence: [{ url: "", note: "" }],
     mintedCards: [],
     isMinting: false,
     isSavingCustomization: false,
@@ -396,6 +414,27 @@ export function PetProvider({ children }: { children: ReactNode }) {
       : new Error("Chat transaction completed, but get_pet could not be read.");
   };
 
+  const readQuestEvalAfterTx = async (
+    contract: ReturnType<typeof createMochiPetContract>,
+    address: string,
+  ): Promise<QuestEvaluation> => {
+    let latestError: unknown = null;
+    // Evaluation runs web fetch + LLM under validator consensus — allow a generous read window.
+    for (let attempt = 0; attempt < 15; attempt += 1) {
+      try {
+        const latestPet = await contract.getPet(address);
+        const raw = readStringField(latestPet, ["last_quest_eval", "lastQuestEval"]);
+        if (raw) return parseQuestEvaluation(raw);
+      } catch (err) {
+        latestError = err;
+      }
+      await sleepMs(2000);
+    }
+    throw latestError instanceof Error
+      ? latestError
+      : new Error("Evaluation completed, but the result could not be read from get_pet.");
+  };
+
   const parseItemPositions = (raw: unknown): Record<string, ItemTransform> => {
     if (typeof raw !== "string" || !raw.trim()) return {};
     try {
@@ -499,7 +538,7 @@ export function PetProvider({ children }: { children: ReactNode }) {
           shirt:    null,
           handheld: equipped.handheld || null,
         },
-        roomId: raw.room_id || "starter_room",
+        roomId: raw.room_id || "space",
         itemPositions: parseItemPositions(raw.item_positions),
         lastResponse: raw.last_response ?? "",
         mintedCards: cards ?? [],
@@ -931,6 +970,51 @@ export function PetProvider({ children }: { children: ReactNode }) {
 
   // ── Context value ──────────────────────────────────────────────────────────
 
+  // ── Quest form state (persisted in store so it survives tab switches) ─────────
+
+  const setQuestRequirements = useCallback((value: string) => {
+    setState((prev) => ({ ...prev, questRequirements: value }));
+  }, []);
+
+  const setQuestEvidence = useCallback(
+    (value: QuestEvidence[] | ((prev: QuestEvidence[]) => QuestEvidence[])) => {
+      setState((prev) => ({
+        ...prev,
+        questEvidence: typeof value === "function" ? value(prev.questEvidence) : value,
+      }));
+    },
+    [],
+  );
+
+  // ── evaluateQuest ────────────────────────────────────────────────────────────
+
+  const evaluateQuest = useCallback(
+    async (requirements: string, evidence: QuestEvidence[]) => {
+      if (!wallet.address) return;
+      setState((prev) => ({ ...prev, isEvaluating: true }));
+      try {
+        const contract = createMochiPetContract(wallet.address);
+        const txHash = await contract.evaluateQuest(requirements, evidence);
+        let result: QuestEvaluation;
+        try {
+          result = await readQuestEvalAfterTx(contract, wallet.address);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          throw new Error(`${message} | tx: ${txHash}`);
+        }
+        setState((prev) => ({ ...prev, lastEvaluation: result, isEvaluating: false }));
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Please try again.";
+        setState((prev) => ({ ...prev, isEvaluating: false }));
+        console.error("Quest evaluation failed:", err);
+        toastError("Something went wrong, please try again!", {
+          description: errorMessage,
+        });
+      }
+    },
+    [wallet.address],
+  );
+
   const value: PetStoreContext = {
     ...state,
     displayName,
@@ -941,6 +1025,9 @@ export function PetProvider({ children }: { children: ReactNode }) {
     createPet,
     performAction,
     sendChat,
+    evaluateQuest,
+    setQuestRequirements,
+    setQuestEvidence,
     setNickname,
     setPetAvatar,
     equipItem,

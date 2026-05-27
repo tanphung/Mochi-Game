@@ -1,11 +1,11 @@
 {
-  "name": "GenLayer Football Market",
-  "short_name": "GenLayer Market",
-  "description": "AI-powered football match predictions on GenLayer blockchain",
+  "name": "Mochi",
+  "short_name": "Mochi",
+  "description": "Customize, raise, mint, and share your on-chain AI pet companion.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
-  "theme_color": "#9B6AF6",
+  "theme_color": "#0b0c14",
   "icons": [
     {
       "src": "/favicon.svg",

@@ -13,7 +13,7 @@ function StatBar({ label, icon, value }: StatBarProps) {
   const low = value < 20;
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       <div className="flex items-center justify-between text-xs">
         <span className="flex items-center gap-2 font-bold text-white/82">
           <span className="grid h-6 w-6 place-items-center rounded-full bg-white/[0.06] text-teal-200">
@@ -38,11 +38,11 @@ export function StatsPanel() {
   const { hunger, energy, cleanliness, happiness } = usePetStore();
 
   return (
-    <div className="mochi-panel p-3">
-      <h3 className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/44">
+    <div className="mochi-panel px-3 py-2.5">
+      <h3 className="mb-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-white/44">
         Stats
       </h3>
-      <div className="space-y-2.5">
+      <div className="space-y-2">
         <StatBar label="Hunger" icon={<Utensils className="h-3.5 w-3.5" />} value={hunger} />
         <StatBar label="Energy" icon={<Zap className="h-3.5 w-3.5" />} value={energy} />
         <StatBar label="Cleanliness" icon={<SparkleIcon />} value={cleanliness} />

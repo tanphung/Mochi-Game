@@ -47,11 +47,104 @@ export interface PetState {
   room_id: string;
   item_positions?: string;
   last_response: string;
+  last_quest_eval?: string;
   last_mood?: string;
   minted_cards: MintedCard[];
 }
 
 export type ItemCategory = "hat" | "glasses" | "necklace" | "shirt" | "handheld";
+
+// ── Quest Evaluator ─────────────────────────────────────────────────────
+
+export interface QuestEvidence {
+  url: string;
+  note: string;
+}
+
+export type RequirementStatus = "met" | "partial" | "missing";
+
+export interface QuestRequirementResult {
+  text: string;
+  status: RequirementStatus;
+  note: string;
+}
+
+export interface QuestEvaluation {
+  summary: string;
+  verdict: "passed" | "needs_work";
+  confidence: number; // 0-100
+  requirements: QuestRequirementResult[];
+  suggestions: string[];
+  unreachable: string[]; // URLs the AI could not open
+}
+
+// Defensive parser for the LLM JSON result (handles fences, key variants, scales).
+export function parseQuestEvaluation(raw: string): QuestEvaluation {
+  const fallback: QuestEvaluation = {
+    summary: "",
+    verdict: "needs_work",
+    confidence: 0,
+    requirements: [],
+    suggestions: [],
+    unreachable: [],
+  };
+  if (!raw || typeof raw !== "string") return fallback;
+
+  let text = raw.trim();
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) text = fenced[1].trim();
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start !== -1 && end !== -1 && end > start) text = text.slice(start, end + 1);
+
+  let obj: any;
+  try {
+    obj = JSON.parse(text);
+  } catch {
+    return fallback;
+  }
+  if (!obj || typeof obj !== "object") return fallback;
+
+  const verdictRaw = String(obj.verdict ?? obj.result ?? "").toLowerCase();
+  const verdict: QuestEvaluation["verdict"] = verdictRaw.includes("pass") ? "passed" : "needs_work";
+
+  let confidence = Number(obj.confidence ?? obj.score ?? 0);
+  if (!Number.isFinite(confidence)) confidence = 0;
+  if (confidence > 0 && confidence <= 1) confidence = confidence * 100; // 0-1 scale
+  confidence = Math.max(0, Math.min(100, Math.round(confidence)));
+
+  const normStatus = (s: unknown): RequirementStatus => {
+    const v = String(s ?? "").toLowerCase();
+    if (v.startsWith("met") || v === "pass" || v === "ok" || v === "yes") return "met";
+    if (v.startsWith("part")) return "partial";
+    return "missing";
+  };
+
+  const reqSource = Array.isArray(obj.requirements)
+    ? obj.requirements
+    : Array.isArray(obj.checklist)
+      ? obj.checklist
+      : [];
+  const requirements: QuestRequirementResult[] = reqSource
+    .map((r: any) => ({
+      text: String(r?.text ?? r?.requirement ?? r?.name ?? ""),
+      status: normStatus(r?.status ?? r?.result),
+      note: String(r?.note ?? r?.detail ?? r?.reason ?? ""),
+    }))
+    .filter((r: QuestRequirementResult) => r.text.trim().length > 0);
+
+  const toStringArray = (v: unknown): string[] =>
+    Array.isArray(v) ? v.map((x) => String(x)).filter((s) => s.trim().length > 0) : [];
+
+  return {
+    summary: String(obj.summary ?? obj.message ?? ""),
+    verdict,
+    confidence,
+    requirements,
+    suggestions: toStringArray(obj.suggestions ?? obj.improvements),
+    unreachable: toStringArray(obj.unreachable ?? obj.unreachable_urls ?? obj.failed_urls),
+  };
+}
 
 // ── Client factory ────────────────────────────────────────────────────
 
@@ -384,13 +477,29 @@ class MochiPetContract {
 
   async createPet(nickname: string): Promise<void> {
     const client = await makeWriteClient(this.account);
-    const txHash = await client.writeContract({
+    // Submit transaction — MetaMask signs here
+    await client.writeContract({
       address: this.contractAddress,
       functionName: "create_pet",
       args: [nickname],
       value: BigInt(0),
     });
-    await checkReceipt(makeReadClient(this.account), txHash);
+    // Poll hasPet until GenLayer validators confirm (up to ~3 minutes)
+    const MAX_ATTEMPTS = 60;
+    const POLL_INTERVAL = 3000;
+    for (let i = 0; i < MAX_ATTEMPTS; i++) {
+      await sleepMs(POLL_INTERVAL);
+      try {
+        const has = await this.hasPet(this.account ?? undefined);
+        if (has) return;
+      } catch {
+        // Ignore read errors during polling, keep trying
+      }
+    }
+    throw new Error(
+      "Transaction was submitted but pet creation timed out after 3 minutes. " +
+      "Please refresh the page — your pet may already be created.",
+    );
   }
 
   async feed(): Promise<void> {
@@ -443,6 +552,23 @@ class MochiPetContract {
       address: this.contractAddress,
       functionName: "chat",
       args: [message],
+      value: BigInt(0),
+    });
+    try {
+      await checkReceipt(makeReadClient(this.account), txHash);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`${message} | tx: ${txHash}`);
+    }
+    return txHash;
+  }
+
+  async evaluateQuest(requirements: string, evidence: QuestEvidence[]): Promise<string> {
+    const client = await makeWriteClient(this.account);
+    const txHash = await client.writeContract({
+      address: this.contractAddress,
+      functionName: "evaluate_quest",
+      args: [requirements, JSON.stringify(evidence)],
       value: BigInt(0),
     });
     try {

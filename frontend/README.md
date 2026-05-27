@@ -1,6 +1,6 @@
-# GenLayer Football Market
+# Mochi Pet DApp
 
-Next.js frontend for GenLayer Football Market - AI-powered football match predictions on GenLayer blockchain.
+Next.js frontend for Mochi, an on-chain AI pet companion on GenLayer.
 
 ## Setup
 
@@ -22,8 +22,8 @@ cp .env.example .env
 ```
 
 3. Configure environment variables:
-   - `NEXT_PUBLIC_CONTRACT_ADDRESS` - GenLayer Football Betting contract address
-   - `NEXT_PUBLIC_STUDIO_URL` - GenLayer Studio URL (default: https://studio.genlayer.com/api)
+   - `NEXT_PUBLIC_CONTRACT_ADDRESS` - deployed `contracts/mochi_pet.py` contract address
+   - `NEXT_PUBLIC_GENLAYER_RPC_URL` - GenLayer Studio URL (default: https://studio.genlayer.com/api)
 
 ## Development
 
@@ -63,22 +63,10 @@ npm start
 - **Radix UI** - Accessible component primitives
 - **shadcn/ui** - Pre-built UI components
 
-## Wallet Management
-
-The app uses GenLayer's account system:
-- **Create Account**: Generate a new private key
-- **Import Account**: Import existing private key
-- **Export Account**: Export your private key (secured)
-- **Disconnect**: Clear stored account data
-
-Accounts are stored in browser's localStorage for development convenience.
-
 ## Features
 
-- **Create Bets**: Create football match predictions with team names, game date, and predicted winner (Team 1, Team 2, or Draw)
-- **View Bets**: Real-time bet table with match details, predictions, status, and owners
-- **Resolve Bets**: Bet owners can resolve matches using GenLayer's AI to verify actual results
-- **Leaderboard**: Track top players by points earned from correct predictions
-- **Player Stats**: View your points and ranking in the community
-- **Glass-morphism UI**: Premium dark theme with OKLCH colors, backdrop blur effects, and smooth animations
-- **Real-time Updates**: Automatic data fetching with 3-second polling intervals via TanStack Query
+- **Create Pet**: Create one Mochi pet per connected wallet.
+- **Care Actions**: Feed, play, sleep, and clean to update stats/EXP on-chain.
+- **Chat with Mochi**: GenLayer LLM-backed pet replies stored as the latest on-chain response.
+- **Inventory**: Preview avatar, room, and accessories, then save customization on-chain.
+- **Cards**: Generate, mint, and download Mochi card snapshots.

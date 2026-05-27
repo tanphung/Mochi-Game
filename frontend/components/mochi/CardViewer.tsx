@@ -79,8 +79,14 @@ function CardAccessory({
       className="absolute left-1/2 grid place-items-center text-[9px] font-black text-white shadow-lg"
       style={{
         top: centerYPercent,
-        width: imageSrc ? MOCHI_ACCESSORY_IMAGE_WIDTH * positionScale : MOCHI_ACCESSORY_FALLBACK_SIZE * positionScale,
-        height: imageSrc ? MOCHI_ACCESSORY_IMAGE_HEIGHT * positionScale : MOCHI_ACCESSORY_FALLBACK_SIZE * positionScale,
+        // Size as a % of the scene (like the avatar and the room) so the preview
+        // matches the downloaded image on every screen size / zoom level.
+        width: imageSrc
+          ? `${(MOCHI_ACCESSORY_IMAGE_WIDTH / MOCHI_ROOM_MAX_WIDTH) * 100}%`
+          : `${(MOCHI_ACCESSORY_FALLBACK_SIZE / MOCHI_ROOM_MAX_WIDTH) * 100}%`,
+        height: imageSrc
+          ? `${(MOCHI_ACCESSORY_IMAGE_HEIGHT / MOCHI_ROOM_MAX_WIDTH) * 100}%`
+          : `${(MOCHI_ACCESSORY_FALLBACK_SIZE / MOCHI_ROOM_MAX_WIDTH) * 100}%`,
         transform: `translate(calc(-50% + ${finalX * positionScale}px), calc(-50% + ${finalY * positionScale}px)) scale(${(item?.scale ?? 1) * finalScale}) rotate(${item?.rotation ?? 0}deg)`,
         zIndex: item?.zIndex ?? 5,
       }}
@@ -118,7 +124,7 @@ function CardScene({
   exportMode?: boolean;
 }) {
   const avatar = getMochiAvatar(avatarId ?? DEFAULT_MOCHI_AVATAR_ID);
-  const room = getRoomById(roomId ?? "starter_room");
+  const room = getRoomById(roomId ?? "space");
   const activeItems = Object.entries(equippedItems ?? {}).filter(([, itemId]) => Boolean(itemId) && !!getItemById(itemId as string));
   const sceneWidth = 330;
   const sceneHeight = sceneWidth;

@@ -5,6 +5,7 @@ import {
   Backpack,
   BookOpen,
   Cat,
+  ClipboardCheck,
   Edit3,
   Home,
   IdCard,
@@ -28,8 +29,9 @@ import { InventoryEditor } from "./InventoryEditor";
 import { CardMinter } from "./CardMinter";
 import { MemoryTimeline } from "./MemoryTimeline";
 import { MilestoneGallery } from "./MilestoneGallery";
+import { QuestEvaluator } from "./QuestEvaluator";
 
-type ActiveTab = "home" | "inventory" | "card" | "memory";
+type ActiveTab = "home" | "inventory" | "card" | "memory" | "quest";
 type MemorySubTab = "timeline" | "milestones";
 
 const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
@@ -143,12 +145,12 @@ export function Dashboard() {
 
           {tab === "home" && (
             <div className="grid grid-cols-1 gap-4 animate-fade-in lg:grid-cols-[340px_1fr]">
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 <StatsPanel />
                 <LevelProgress />
 
-                <div className="mochi-panel p-3">
-                  <h3 className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/44">
+                <div className="mochi-panel px-3 py-2.5">
+                  <h3 className="mb-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-white/44">
                     Quick Actions
                   </h3>
                   <ActionButtons />
@@ -156,13 +158,24 @@ export function Dashboard() {
 
                 <button
                   onClick={() => setShowChat(true)}
-                  className="mochi-primary-button w-full px-5 py-2.5 text-sm"
+                  className="mochi-primary-button w-full px-5 py-3 text-base"
                 >
-                  <MessageCircle className="h-4 w-4" />
+                  <MessageCircle className="h-5 w-5" />
                   Chat with Pet
                 </button>
-                <p className="text-center text-[11px] font-semibold text-white/38">
+                <p className="-mt-1 text-center text-[13px] font-semibold text-white/42">
                   AI responses powered by GenLayer on-chain consensus
+                </p>
+
+                <button
+                  onClick={() => setTab("quest")}
+                  className="mochi-primary-button w-full px-5 py-3 text-base"
+                >
+                  <ClipboardCheck className="h-5 w-5" />
+                  Let Mochi Check Your Quest
+                </button>
+                <p className="-mt-1 text-center text-[13px] font-semibold text-white/42">
+                  Reviewed against the requirements before you submit
                 </p>
               </div>
 
@@ -185,9 +198,9 @@ export function Dashboard() {
 
                 <div
                   className="mx-auto w-full overflow-hidden rounded-[28px] border border-white/10 shadow-[0_26px_80px_rgba(0,0,0,0.36)]"
-                  style={{ maxWidth: MOCHI_ROOM_MAX_WIDTH }}
+                  style={{ maxWidth: MOCHI_ROOM_MAX_WIDTH * 0.95 }}
                 >
-                  <PetPreview />
+                  <PetPreview animate />
                 </div>
 
                 <div className="mochi-panel p-4">
@@ -258,6 +271,12 @@ export function Dashboard() {
               </div>
               {memorySubTab === "timeline" && <MemoryTimeline />}
               {memorySubTab === "milestones" && <MilestoneGallery />}
+            </div>
+          )}
+
+          {tab === "quest" && (
+            <div className="animate-fade-in">
+              <QuestEvaluator onBack={() => setTab("home")} />
             </div>
           )}
         </div>

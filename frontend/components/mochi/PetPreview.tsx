@@ -7,6 +7,9 @@ import { getItemById } from "@/lib/data/itemManifest";
 import { getRoomById } from "@/lib/data/roomManifest";
 import { getMochiAvatar } from "@/lib/data/mochiAvatars";
 import {
+  MOCHI_ACCESSORY_FALLBACK_SIZE,
+  MOCHI_ACCESSORY_IMAGE_HEIGHT,
+  MOCHI_ACCESSORY_IMAGE_WIDTH,
   MOCHI_AVATAR_TRANSFORM_ID,
   MOCHI_SCENE_AVATAR_CENTER_Y_PERCENT,
   MOCHI_SCENE_AVATAR_WIDTH_RATIO,
@@ -105,10 +108,21 @@ function AccessoryLayer({ itemId, category, draggable = false }: AccessoryProps)
     setItemScale(itemId, nextScale);
   }, [draggable, finalScale, itemId, setItemScale]);
 
+  // Size proportionally to the room (same ratio used by the Card preview and
+  // the downloaded image) so accessories stay WYSIWYG across every screen size.
+  const widthPct = imageSrc
+    ? (MOCHI_ACCESSORY_IMAGE_WIDTH / MOCHI_ROOM_MAX_WIDTH) * 100
+    : (MOCHI_ACCESSORY_FALLBACK_SIZE / MOCHI_ROOM_MAX_WIDTH) * 100;
+  const heightPct = imageSrc
+    ? (MOCHI_ACCESSORY_IMAGE_HEIGHT / MOCHI_ROOM_MAX_WIDTH) * 100
+    : (MOCHI_ACCESSORY_FALLBACK_SIZE / MOCHI_ROOM_MAX_WIDTH) * 100;
+
   const style: React.CSSProperties = {
     position: "absolute",
     left: "50%",
     top: MOCHI_SCENE_AVATAR_CENTER_Y_PERCENT,
+    width: `${widthPct}%`,
+    height: `${heightPct}%`,
     transform: `translate(calc(-50% + ${finalX}px), calc(-50% + ${finalY}px)) scale(${(item?.scale ?? 1) * finalScale}) rotate(${item?.rotation ?? 0}deg)`,
     zIndex: item?.zIndex ?? 5,
     pointerEvents: draggable ? "auto" : "none",
@@ -128,8 +142,8 @@ function AccessoryLayer({ itemId, category, draggable = false }: AccessoryProps)
       onWheel={onWheel}
       className={`grid place-items-center text-[11px] font-black text-white/85 shadow-lg ${
         imageSrc
-          ? "h-24 w-56"
-          : "h-12 w-12 rounded-full border border-white/15 bg-black/35 backdrop-blur-sm"
+          ? ""
+          : "rounded-full border border-white/15 bg-black/35 backdrop-blur-sm"
       }`}
       title={item?.name ?? category}
     >
@@ -152,9 +166,10 @@ function AccessoryLayer({ itemId, category, draggable = false }: AccessoryProps)
 
 interface PetPreviewProps {
   draggable?: boolean;
+  animate?: boolean;
 }
 
-export function PetPreview({ draggable = false }: PetPreviewProps) {
+export function PetPreview({ draggable = false, animate = false }: PetPreviewProps) {
   const {
     petAvatarId,
     petColor,
@@ -236,6 +251,10 @@ export function PetPreview({ draggable = false }: PetPreviewProps) {
       </div>
 
       <div
+        className={`absolute inset-0 ${animate ? "mochi-sway" : ""}`}
+        style={{ pointerEvents: "none", zIndex: 1 }}
+      >
+      <div
         className="absolute flex items-center justify-center transition-all duration-500"
         onPointerDown={onAvatarPointerDown}
         onPointerMove={onAvatarPointerMove}
@@ -273,6 +292,7 @@ export function PetPreview({ draggable = false }: PetPreviewProps) {
         if (!id) return null;
         return <AccessoryLayer key={cat} itemId={id} category={cat} draggable={draggable} />;
       })}
+      </div>
 
       {overlay && (
         <span
