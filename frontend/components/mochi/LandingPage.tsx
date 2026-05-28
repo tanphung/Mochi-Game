@@ -101,7 +101,7 @@ function ShowcaseCard({
 }
 
 export function LandingPage() {
-  const { connectWallet, isLoading, isMetaMaskInstalled } = useWallet();
+  const { connectWallet, isLoading, isWalletInstalled } = useWallet();
   const cards = [...showcaseCards, ...showcaseCards];
 
   return (
@@ -161,14 +161,14 @@ export function LandingPage() {
                 <WalletCards className="h-4 w-4" />
                 {isLoading ? "Connecting..." : "Connect Wallet"}
               </button>
-              {!isMetaMaskInstalled && (
+              {!isWalletInstalled && (
                 <a
-                  href="https://metamask.io/download/"
+                  href="https://ethereum.org/en/wallets/find-wallet/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm font-bold text-amber-200 underline-offset-4 hover:underline"
                 >
-                  Install MetaMask
+                  Install a Wallet
                 </a>
               )}
             </div>

@@ -2,8 +2,9 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import {
-  isMetaMaskInstalled,
-  connectMetaMask,
+  isWalletInstalled,
+  connectWallet as requestWalletConnection,
+  subscribeToWalletDiscovery,
   switchAccount,
   getAccounts,
   getCurrentChainId,
@@ -21,7 +22,7 @@ export interface WalletState {
   chainId: string | null;
   isConnected: boolean;
   isLoading: boolean;
-  isMetaMaskInstalled: boolean;
+  isWalletInstalled: boolean;
   isOnCorrectNetwork: boolean;
 }
 
@@ -44,14 +45,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     chainId: null,
     isConnected: false,
     isLoading: true,
-    isMetaMaskInstalled: false,
+    isWalletInstalled: false,
     isOnCorrectNetwork: false,
   });
 
   // Check MetaMask installation and load account on mount
   useEffect(() => {
     const initWallet = async () => {
-      const installed = isMetaMaskInstalled();
+      const installed = isWalletInstalled();
 
       if (!installed) {
         setState({
@@ -59,7 +60,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           chainId: null,
           isConnected: false,
           isLoading: false,
-          isMetaMaskInstalled: false,
+          isWalletInstalled: false,
           isOnCorrectNetwork: false,
         });
         return;
@@ -78,7 +79,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             chainId: null,
             isConnected: false,
             isLoading: false,
-            isMetaMaskInstalled: true,
+            isWalletInstalled: true,
             isOnCorrectNetwork: false,
           });
           return;
@@ -98,7 +99,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           chainId,
           isConnected: accounts.length > 0,
           isLoading: false,
-          isMetaMaskInstalled: true,
+          isWalletInstalled: true,
           isOnCorrectNetwork: correctNetwork,
         });
       } catch (error) {
@@ -108,7 +109,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           chainId: null,
           isConnected: false,
           isLoading: false,
-          isMetaMaskInstalled: true,
+          isWalletInstalled: true,
           isOnCorrectNetwork: false,
         });
       }
@@ -116,6 +117,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     initWallet();
   }, []);
+
+  // If no wallet was found at mount, listen for wallets that inject late.
+  // Production builds can render before the extension is ready; EIP-6963
+  // discovery (MetaMask, OKX, Coinbase...) lets us recover without a reload.
+  useEffect(() => {
+    if (state.isWalletInstalled) return;
+    const unsubscribe = subscribeToWalletDiscovery(() => {
+      if (isWalletInstalled()) {
+        setState((prev) => ({ ...prev, isWalletInstalled: true }));
+      }
+    });
+    return unsubscribe;
+  }, [state.isWalletInstalled]);
 
   // Set up MetaMask event listeners (ONCE for entire app)
   useEffect(() => {
@@ -187,7 +201,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     try {
       setState((prev) => ({ ...prev, isLoading: true }));
 
-      const address = await connectMetaMask();
+      const address = await requestWalletConnection();
       const chainId = await getCurrentChainId();
       const correctNetwork = await isOnGenLayerNetwork();
 
@@ -202,7 +216,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         chainId,
         isConnected: true,
         isLoading: false,
-        isMetaMaskInstalled: true,
+        isWalletInstalled: true,
         isOnCorrectNetwork: correctNetwork,
       });
 
@@ -214,12 +228,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       // Handle specific error types with appropriate toasts
       if (err.message?.includes("rejected")) {
         userRejected("Connection cancelled");
-      } else if (err.message?.includes("MetaMask is not installed")) {
-        error("MetaMask not found", {
-          description: "Please install MetaMask to connect your wallet.",
+      } else if (err.message?.includes("No wallet detected")) {
+        error("No wallet found", {
+          description: "Please install a Web3 wallet (MetaMask, OKX, Coinbase...) to connect.",
           action: {
-            label: "Install MetaMask",
-            onClick: () => window.open("https://metamask.io/download/", "_blank")
+            label: "Find a Wallet",
+            onClick: () => window.open("https://ethereum.org/en/wallets/find-wallet/", "_blank")
           }
         });
       } else {
@@ -277,7 +291,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         chainId,
         isConnected: true,
         isLoading: false,
-        isMetaMaskInstalled: true,
+        isWalletInstalled: true,
         isOnCorrectNetwork: correctNetwork,
       });
 

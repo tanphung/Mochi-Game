@@ -1,9 +1,5 @@
 "use client";
 
-import { createClient } from "genlayer-js";
-import { studionet } from "genlayer-js/chains";
-import { createWalletClient, custom, type WalletClient } from "viem";
-
 // GenLayer Network Configuration (from environment variables with fallbacks)
 export const GENLAYER_CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_GENLAYER_CHAIN_ID || "61999");
 export const GENLAYER_CHAIN_ID_HEX = `0x${GENLAYER_CHAIN_ID.toString(16).toUpperCase()}`;
@@ -55,20 +51,66 @@ export function getContractAddress(): string {
   return address;
 }
 
-/**
- * Check if MetaMask is installed
- */
-export function isMetaMaskInstalled(): boolean {
-  if (typeof window === "undefined") return false;
-  return !!window.ethereum?.isMetaMask;
+// ---- Wallet discovery (EIP-6963 multi-wallet + window.ethereum fallback) ----
+// EIP-6963 lets us detect ANY injected wallet (MetaMask, OKX, Coinbase, Rabby...)
+// via events. This avoids the race where a wallet injects after first render,
+// and removes the MetaMask-only assumption.
+interface EIP6963ProviderDetail {
+  info: { uuid: string; name: string; icon: string; rdns: string };
+  provider: EthereumProvider;
+}
+
+const discoveredWallets: EIP6963ProviderDetail[] = [];
+
+function recordWallet(detail?: EIP6963ProviderDetail) {
+  if (!detail?.info?.uuid) return;
+  if (!discoveredWallets.some((w) => w.info.uuid === detail.info.uuid)) {
+    discoveredWallets.push(detail);
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("eip6963:announceProvider", (event: any) =>
+    recordWallet(event.detail)
+  );
+  // Ask any already-injected wallets to announce themselves.
+  window.dispatchEvent(new Event("eip6963:requestProvider"));
 }
 
 /**
- * Get the Ethereum provider (MetaMask)
+ * Subscribe to wallet discovery. Fires whenever a wallet announces itself,
+ * including wallets injected after the page has rendered (production race).
+ * Returns an unsubscribe function.
+ */
+export function subscribeToWalletDiscovery(callback: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const handler = (event: any) => {
+    recordWallet(event.detail);
+    callback();
+  };
+  window.addEventListener("eip6963:announceProvider", handler);
+  window.dispatchEvent(new Event("eip6963:requestProvider"));
+  return () => window.removeEventListener("eip6963:announceProvider", handler);
+}
+
+/**
+ * Check if ANY Web3 wallet is available (not just MetaMask).
+ */
+export function isWalletInstalled(): boolean {
+  if (typeof window === "undefined") return false;
+  return !!window.ethereum || discoveredWallets.length > 0;
+}
+
+/**
+ * Get the active injected EIP-1193 provider from whichever wallet is available.
+ * Prefers window.ethereum (the user's active/default wallet), then any
+ * EIP-6963 announced provider.
  */
 export function getEthereumProvider(): EthereumProvider | null {
   if (typeof window === "undefined") return null;
-  return window.ethereum || null;
+  if (window.ethereum) return window.ethereum;
+  if (discoveredWallets.length > 0) return discoveredWallets[0].provider;
+  return null;
 }
 
 /**
@@ -79,7 +121,7 @@ export async function requestAccounts(): Promise<string[]> {
   const provider = getEthereumProvider();
 
   if (!provider) {
-    throw new Error("MetaMask is not installed");
+    throw new Error("No wallet detected");
   }
 
   try {
@@ -145,7 +187,7 @@ export async function addGenLayerNetwork(): Promise<void> {
   const provider = getEthereumProvider();
 
   if (!provider) {
-    throw new Error("MetaMask is not installed");
+    throw new Error("No wallet detected");
   }
 
   try {
@@ -168,7 +210,7 @@ export async function switchToGenLayerNetwork(): Promise<void> {
   const provider = getEthereumProvider();
 
   if (!provider) {
-    throw new Error("MetaMask is not installed");
+    throw new Error("No wallet detected");
   }
 
   try {
@@ -204,12 +246,12 @@ export async function isOnGenLayerNetwork(): Promise<boolean> {
 }
 
 /**
- * Connect to MetaMask and ensure we're on GenLayer network
+ * Connect to the user's wallet and ensure we're on the GenLayer network.
  * @returns The connected address
  */
-export async function connectMetaMask(): Promise<string> {
-  if (!isMetaMaskInstalled()) {
-    throw new Error("MetaMask is not installed");
+export async function connectWallet(): Promise<string> {
+  if (!isWalletInstalled()) {
+    throw new Error("No wallet detected");
   }
 
   // Request accounts
@@ -239,7 +281,7 @@ export async function switchAccount(): Promise<string> {
   const provider = getEthereumProvider();
 
   if (!provider) {
-    throw new Error("MetaMask is not installed");
+    throw new Error("No wallet detected");
   }
 
   try {
@@ -269,59 +311,3 @@ export async function switchAccount(): Promise<string> {
   }
 }
 
-/**
- * Create a viem wallet client from MetaMask provider
- */
-export function createMetaMaskWalletClient(): WalletClient | null {
-  const provider = getEthereumProvider();
-
-  if (!provider) {
-    return null;
-  }
-
-  try {
-    return createWalletClient({
-      chain: studionet as any,
-      transport: custom(provider),
-    });
-  } catch (error) {
-    console.error("Error creating wallet client:", error);
-    return null;
-  }
-}
-
-/**
- * Create a GenLayer client with MetaMask account
- *
- * Note: The genlayer-js SDK doesn't directly support custom transports like viem.
- * When an address is provided, the SDK will use the window.ethereum provider
- * automatically for transaction signing via MetaMask.
- */
-export function createGenLayerClient(address?: string) {
-  const config: any = {
-    chain: studionet,
-  };
-
-  if (address) {
-    config.account = address as `0x${string}`;
-  }
-
-  try {
-    return createClient(config);
-  } catch (error) {
-    console.error("Error creating GenLayer client:", error);
-    // Return client without account on error
-    return createClient({
-      chain: studionet,
-    });
-  }
-}
-
-/**
- * Get a client instance with MetaMask account
- */
-export async function getClient() {
-  const accounts = await getAccounts();
-  const address = accounts[0];
-  return createGenLayerClient(address);
-}

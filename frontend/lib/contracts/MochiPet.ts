@@ -7,6 +7,7 @@ import { parseEventLogs } from "viem";
 import {
   getContractAddress,
   getStudioUrl,
+  getEthereumProvider,
   isOnGenLayerNetwork,
   switchToGenLayerNetwork,
 } from "../genlayer/client";
@@ -153,6 +154,11 @@ function makeWalletClient(address?: string | null) {
   if (address) config.account = address as `0x${string}`;
   const studioUrl = getStudioUrl();
   if (studioUrl) config.endpoint = studioUrl;
+  // Route signing (eth_*) to whichever wallet the user actually has
+  // (OKX, MetaMask, Coinbase...). genlayer-js uses config.provider, falling
+  // back to window.ethereum only if omitted.
+  const provider = getEthereumProvider();
+  if (provider) config.provider = provider;
   return createClient(config);
 }
 
@@ -166,7 +172,7 @@ async function ensureWalletOnGenLayerNetwork() {
 
   const switched = await isOnGenLayerNetwork();
   if (!switched) {
-    throw new Error("Please switch MetaMask to GenLayer Studio before signing.");
+    throw new Error("Please switch your wallet to GenLayer Studio before signing.");
   }
 }
 
@@ -477,7 +483,7 @@ class MochiPetContract {
 
   async createPet(nickname: string): Promise<void> {
     const client = await makeWriteClient(this.account);
-    // Submit transaction — MetaMask signs here
+    // Submit transaction — wallet signs here
     await client.writeContract({
       address: this.contractAddress,
       functionName: "create_pet",
