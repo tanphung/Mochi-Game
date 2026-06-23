@@ -202,6 +202,16 @@ export async function addGenLayerNetwork(): Promise<void> {
   }
 }
 
+function isExistingNetworkError(error: any): boolean {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    message.includes("already exists") ||
+    message.includes("already added") ||
+    message.includes("already used") ||
+    (message.includes("url") && message.includes("used"))
+  );
+}
+
 /**
  * Switch to GenLayer network
  */
@@ -212,15 +222,31 @@ export async function switchToGenLayerNetwork(): Promise<void> {
     throw new Error("No wallet detected");
   }
 
-  try {
-    await provider.request({
+  const requestSwitch = () =>
+    provider.request({
       method: "wallet_switchEthereumChain",
       params: [{ chainId: GENLAYER_CHAIN_ID_HEX }],
     });
+
+  try {
+    await requestSwitch();
   } catch (error: any) {
-    // If the chain is not added, add it
     if (error.code === 4902) {
-      await addGenLayerNetwork();
+      try {
+        await addGenLayerNetwork();
+      } catch (addError: any) {
+        if (!isExistingNetworkError(addError)) {
+          throw addError;
+        }
+      }
+
+      try {
+        await requestSwitch();
+      } catch (switchError: any) {
+        throw new Error(
+          `${GENLAYER_NETWORK.chainName} is already in your wallet. Please select it manually and connect again.`
+        );
+      }
     } else if (error.code === 4001) {
       throw new Error("User rejected switching the network");
     } else {
