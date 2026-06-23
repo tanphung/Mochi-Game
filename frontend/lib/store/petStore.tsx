@@ -98,6 +98,7 @@ interface PetState {
   isChatLoading: boolean;
   isEvaluating: boolean;
   questStatus: "submitting" | "consensus" | "reading" | null;
+  questTxHash: string | null;
   lastEvaluation: QuestEvaluation | null;
   questRequirements: string;
   questEvidence: QuestEvidence[];
@@ -286,6 +287,7 @@ function makeInitialState(): PetState {
     isChatLoading: false,
     isEvaluating: false,
     questStatus: null,
+    questTxHash: null,
     lastEvaluation: null,
     questRequirements: "",
     questEvidence: [{ url: "", note: "" }],
@@ -993,12 +995,21 @@ export function PetProvider({ children }: { children: ReactNode }) {
   const evaluateQuest = useCallback(
     async (requirements: string, evidence: QuestEvidence[]) => {
       if (!wallet.address) return;
-      setState((prev) => ({ ...prev, isEvaluating: true, questStatus: "submitting" }));
+      setState((prev) => ({
+        ...prev,
+        isEvaluating: true,
+        questStatus: "submitting",
+        questTxHash: null,
+      }));
       try {
         const contract = createMochiPetContract(wallet.address);
         await Promise.resolve();
         setState((prev) => ({ ...prev, questStatus: "consensus" }));
-        const txHash = await contract.evaluateQuest(requirements, evidence);
+        const txHash = await contract.evaluateQuest(requirements, evidence, {
+          onTxHash: (hash) => {
+            setState((prev) => ({ ...prev, questTxHash: hash }));
+          },
+        });
         let result: QuestEvaluation;
         try {
           setState((prev) => ({ ...prev, questStatus: "reading" }));

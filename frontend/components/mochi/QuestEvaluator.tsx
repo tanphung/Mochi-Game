@@ -12,9 +12,11 @@ import {
   AlertTriangle,
   XCircle,
   RefreshCw,
+  ExternalLink,
 } from "lucide-react";
 import { usePetStore } from "@/lib/store/petStore";
 import { QuestEvidence, RequirementStatus } from "@/lib/contracts/MochiPet";
+import { getGenLayerExplorerTxUrl } from "@/lib/genlayer/client";
 
 interface Props {
   onBack: () => void;
@@ -35,6 +37,7 @@ export function QuestEvaluator({ onBack }: Props) {
   const {
     isEvaluating,
     questStatus,
+    questTxHash,
     lastEvaluation,
     evaluateQuest,
     questRequirements: requirements,
@@ -64,6 +67,10 @@ export function QuestEvaluator({ onBack }: Props) {
   };
 
   const showResult = !!lastEvaluation && !resultDismissed && !isEvaluating;
+  const questTxUrl = questTxHash ? getGenLayerExplorerTxUrl(questTxHash) : "";
+  const shortTxHash = questTxHash
+    ? `${questTxHash.slice(0, 10)}...${questTxHash.slice(-8)}`
+    : "";
   const statusText =
     questStatus === "submitting"
       ? "Submitting transaction..."
@@ -212,6 +219,18 @@ export function QuestEvaluator({ onBack }: Props) {
             Keep this page open while Mochi waits for the on-chain result.
           </p>
         </div>
+      )}
+      {questTxHash && (isEvaluating || showResult) && (
+        <a
+          href={questTxUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-xs font-bold text-white/60 transition hover:border-teal-300/40 hover:text-teal-100"
+        >
+          <span className="text-teal-200">Transaction submitted</span>
+          <span className="font-mono">{shortTxHash}</span>
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
       )}
 
       {/* Result */}

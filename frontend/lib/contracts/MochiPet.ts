@@ -569,7 +569,11 @@ class MochiPetContract {
     return txHash;
   }
 
-  async evaluateQuest(requirements: string, evidence: QuestEvidence[]): Promise<string> {
+  async evaluateQuest(
+    requirements: string,
+    evidence: QuestEvidence[],
+    options?: { onTxHash?: (txHash: string) => void },
+  ): Promise<string> {
     const client = await makeWriteClient(this.account);
     const txHash = await client.writeContract({
       address: this.contractAddress,
@@ -577,6 +581,7 @@ class MochiPetContract {
       args: [requirements, JSON.stringify(evidence)],
       value: BigInt(0),
     });
+    options?.onTxHash?.(txHash);
     try {
       await checkReceipt(makeReadClient(this.account), txHash);
     } catch (err) {

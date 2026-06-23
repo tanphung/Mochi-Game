@@ -14,7 +14,6 @@ import {
   Save,
   Trophy,
   WalletCards,
-  CircleDot,
 } from "lucide-react";
 import { usePetStore } from "@/lib/store/petStore";
 import { useWallet } from "@/lib/genlayer/WalletProvider";
@@ -31,7 +30,6 @@ import { CardMinter } from "./CardMinter";
 import { MemoryTimeline } from "./MemoryTimeline";
 import { MilestoneGallery } from "./MilestoneGallery";
 import { QuestEvaluator } from "./QuestEvaluator";
-import { GENLAYER_NETWORK, getContractAddress } from "@/lib/genlayer/client";
 
 type ActiveTab = "home" | "inventory" | "card" | "memory" | "quest";
 type MemorySubTab = "timeline" | "milestones";
@@ -46,7 +44,7 @@ const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
 export function Dashboard() {
   useDecayTick();
 
-  const { address, chainId, isOnCorrectNetwork, disconnectWallet } = useWallet();
+  const { address, disconnectWallet } = useWallet();
   const {
     displayName, petNickname, isLoading, setNickname, setRoom, roomId,
     level, exp, isSavingCustomization, saveCustomization,
@@ -59,12 +57,6 @@ export function Dashboard() {
   const [nickInput, setNickInput] = useState(petNickname);
 
   const short = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "";
-  const contractAddress = getContractAddress();
-  const shortContract = contractAddress
-    ? `${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`
-    : "not set";
-  const networkLabel = GENLAYER_NETWORK.chainName;
-  const activeChain = chainId ? parseInt(chainId, 16).toString() : "unknown";
 
   const saveNickname = async () => {
     await setNickname(nickInput.trim());
@@ -133,23 +125,6 @@ export function Dashboard() {
           Syncing with chain...
         </div>
       )}
-
-      <div className="relative z-10 border-b border-white/5 bg-black/18">
-        <div className="mochi-container flex flex-wrap items-center gap-2 py-2 text-[11px] font-bold text-white/50">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3 py-1.5">
-            <CircleDot className={`h-3.5 w-3.5 ${isOnCorrectNetwork ? "text-teal-300" : "text-amber-300"}`} />
-            {networkLabel} ({GENLAYER_NETWORK.chainId})
-          </span>
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3 py-1.5 font-mono">
-            Contract {shortContract}
-          </span>
-          {!isOnCorrectNetwork && (
-            <span className="inline-flex items-center gap-2 rounded-full bg-amber-300/10 px-3 py-1.5 text-amber-100">
-              Active chain {activeChain}; switch before signing
-            </span>
-          )}
-        </div>
-      </div>
 
       <main className="relative z-10 flex-1">
         <div className="mochi-container py-4">

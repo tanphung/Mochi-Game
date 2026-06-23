@@ -49,8 +49,7 @@ Without GenLayer, this review would be a normal off-chain AI checker controlled 
 - Frontend source: `frontend/`
 - Uses `genlayer-js` to read and write the deployed contract.
 - Wallet connect is separated from network switching so users can enter the app even if their wallet already has a GenLayer Studio RPC entry.
-- Dashboard displays the active GenLayer network and contract address.
-- Quest Evaluator shows transaction progress while waiting for GenLayer consensus and then reads the on-chain result back from the contract.
+- Quest Evaluator shows transaction progress, links to the submitted transaction in GenLayer Studio Explorer, waits for GenLayer consensus, and then reads the on-chain result back from the contract.
 
 ## Project Structure
 

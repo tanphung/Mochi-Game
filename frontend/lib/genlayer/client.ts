@@ -50,6 +50,12 @@ export function getContractAddress(): string {
   return address;
 }
 
+export function getGenLayerExplorerTxUrl(txHash: string): string {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_GENLAYER_EXPLORER_URL || "https://explorer-studio.genlayer.com";
+  return `${baseUrl.replace(/\/$/, "")}/tx/${txHash}`;
+}
+
 // ---- Wallet discovery (EIP-6963 multi-wallet + window.ethereum fallback) ----
 // EIP-6963 lets us detect ANY injected wallet (MetaMask, OKX, Coinbase, Rabby...)
 // via events. This avoids the race where a wallet injects after first render,
