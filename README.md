@@ -4,8 +4,8 @@ Mochi is a GenLayer dApp where each wallet raises an on-chain pet, chats with an
 
 ## Live Submission
 
-- Live app: https://frontend-vandas.vercel.app
-- Production deployment: https://frontend-pily8ks18-vandas.vercel.app
+- Live app: https://mochi-game-frontend.vercel.app
+- Production deployment: https://mochi-game-frontend-j39fu15po-vandas.vercel.app
 - GitHub repo: https://github.com/tanphung/Mochi-Game
 - Network: GenLayer Bradbury Testnet
 - Current contract: `0xCf3b9e426c56248762786d21a8a5fd816212fc6f`
@@ -124,6 +124,6 @@ For the final video, show the full GenLayer loop:
 ## Deployment Notes
 
 - Latest contract deployed successfully to Bradbury: `0xCf3b9e426c56248762786d21a8a5fd816212fc6f`.
-- Latest Vercel production deployment is ready: https://frontend-pily8ks18-vandas.vercel.app
-- Stable Vercel alias from the deployment: https://frontend-vandas.vercel.app
-- The Vercel project was created under team scope `vandas` as `frontend`.
+- Latest Vercel production deployment is ready: https://mochi-game-frontend-j39fu15po-vandas.vercel.app
+- Stable submitted Vercel alias: https://mochi-game-frontend.vercel.app
+- The Vercel project is under team scope `vandas` as `mochi-game-frontend`.
