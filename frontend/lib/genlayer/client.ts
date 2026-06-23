@@ -262,7 +262,9 @@ export async function isOnGenLayerNetwork(): Promise<boolean> {
 }
 
 /**
- * Connect to the user's wallet and ensure we're on the GenLayer network.
+ * Connect to the user's wallet. Network correctness is tracked separately so
+ * wallets with an existing GenLayer RPC entry do not get stuck in add-network.
+ * Write calls still enforce the GenLayer network before signing.
  * @returns The connected address
  */
 export async function connectWallet(): Promise<string> {
@@ -275,13 +277,6 @@ export async function connectWallet(): Promise<string> {
 
   if (!accounts || accounts.length === 0) {
     throw new Error("No accounts found");
-  }
-
-  // Check and switch to GenLayer network
-  const onCorrectNetwork = await isOnGenLayerNetwork();
-
-  if (!onCorrectNetwork) {
-    await switchToGenLayerNetwork();
   }
 
   return accounts[0];
