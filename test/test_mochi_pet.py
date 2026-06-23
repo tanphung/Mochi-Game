@@ -10,7 +10,7 @@ from gltest.direct import create_address
 CONTRACT_PATH = "contracts/mochi_pet.py"
 LLM_MOCK_PATTERN = r".*You are Mochi.*"
 LLM_MOCK_RESPONSE = "Meow! I'm so happy to see you!"
-QUEST_LLM_MOCK_RESPONSE = json.dumps({
+QUEST_LLM_MOCK_RESPONSE = "```json\n" + json.dumps({
     "summary": "Great work! Your submission meets all requirements.",
     "verdict": "passed",
     "confidence": 90,
@@ -19,7 +19,7 @@ QUEST_LLM_MOCK_RESPONSE = json.dumps({
     ],
     "suggestions": [],
     "unreachable": [],
-})
+}) + "\n```"
 
 
 # ── test 1: create pet ───────────────────────────────────────────────
@@ -290,3 +290,35 @@ def test_evaluate_quest_rejects_invalid_evidence(direct_vm, direct_deploy, direc
 
     with direct_vm.expect_revert("Invalid evidence JSON"):
         contract.evaluate_quest("Do something", "not-json")
+
+
+def test_evaluate_quest_rejects_empty_evidence_list(direct_vm, direct_deploy, direct_alice):
+    direct_vm.sender = direct_alice
+    contract = direct_deploy(CONTRACT_PATH)
+    contract.create_pet("Pip")
+
+    with direct_vm.expect_revert("Evidence must be a non-empty list"):
+        contract.evaluate_quest("Do something", "[]")
+
+
+def test_evaluate_quest_rejects_invalid_evidence_url(direct_vm, direct_deploy, direct_alice):
+    direct_vm.sender = direct_alice
+    contract = direct_deploy(CONTRACT_PATH)
+    contract.create_pet("Pip")
+
+    evidence = json.dumps([{"url": "not-a-url", "note": ""}])
+    with direct_vm.expect_revert("Invalid evidence URL"):
+        contract.evaluate_quest("Do something", evidence)
+
+
+def test_evaluate_quest_rejects_too_many_evidence_items(direct_vm, direct_deploy, direct_alice):
+    direct_vm.sender = direct_alice
+    contract = direct_deploy(CONTRACT_PATH)
+    contract.create_pet("Pip")
+
+    evidence = json.dumps([
+        {"url": f"https://example.com/{i}", "note": ""}
+        for i in range(6)
+    ])
+    with direct_vm.expect_revert("Maximum 5 evidence items allowed"):
+        contract.evaluate_quest("Do something", evidence)

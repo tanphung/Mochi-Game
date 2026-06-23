@@ -34,6 +34,7 @@ const STATUS_META: Record<
 export function QuestEvaluator({ onBack }: Props) {
   const {
     isEvaluating,
+    questStatus,
     lastEvaluation,
     evaluateQuest,
     questRequirements: requirements,
@@ -63,6 +64,14 @@ export function QuestEvaluator({ onBack }: Props) {
   };
 
   const showResult = !!lastEvaluation && !resultDismissed && !isEvaluating;
+  const statusText =
+    questStatus === "submitting"
+      ? "Submitting transaction..."
+      : questStatus === "consensus"
+        ? "Waiting for GenLayer consensus..."
+        : questStatus === "reading"
+          ? "Reading on-chain result..."
+          : "GenLayer validators are reaching consensus...";
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 animate-fade-in">
@@ -194,10 +203,15 @@ export function QuestEvaluator({ onBack }: Props) {
           </>
         )}
       </button>
-      {isEvaluating && (
-        <p className="text-center text-[11px] font-semibold text-white/40">
-          GenLayer validators are reaching consensus — this can take 15–60 seconds.
-        </p>
+      {isEvaluating && questStatus && (
+        <div className="rounded-2xl border border-teal-300/15 bg-teal-300/8 px-4 py-3 text-center">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-teal-100">
+            {statusText}
+          </p>
+          <p className="mt-1 text-[11px] font-semibold text-white/45">
+            Keep this page open while Mochi waits for the on-chain result.
+          </p>
+        </div>
       )}
 
       {/* Result */}

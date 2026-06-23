@@ -97,6 +97,7 @@ interface PetState {
   chatHistory: ChatMessage[];
   isChatLoading: boolean;
   isEvaluating: boolean;
+  questStatus: "submitting" | "consensus" | "reading" | null;
   lastEvaluation: QuestEvaluation | null;
   questRequirements: string;
   questEvidence: QuestEvidence[];
@@ -284,6 +285,7 @@ function makeInitialState(): PetState {
     chatHistory: [],
     isChatLoading: false,
     isEvaluating: false,
+    questStatus: null,
     lastEvaluation: null,
     questRequirements: "",
     questEvidence: [{ url: "", note: "" }],
@@ -991,21 +993,29 @@ export function PetProvider({ children }: { children: ReactNode }) {
   const evaluateQuest = useCallback(
     async (requirements: string, evidence: QuestEvidence[]) => {
       if (!wallet.address) return;
-      setState((prev) => ({ ...prev, isEvaluating: true }));
+      setState((prev) => ({ ...prev, isEvaluating: true, questStatus: "submitting" }));
       try {
         const contract = createMochiPetContract(wallet.address);
+        await Promise.resolve();
+        setState((prev) => ({ ...prev, questStatus: "consensus" }));
         const txHash = await contract.evaluateQuest(requirements, evidence);
         let result: QuestEvaluation;
         try {
+          setState((prev) => ({ ...prev, questStatus: "reading" }));
           result = await readQuestEvalAfterTx(contract, wallet.address);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           throw new Error(`${message} | tx: ${txHash}`);
         }
-        setState((prev) => ({ ...prev, lastEvaluation: result, isEvaluating: false }));
+        setState((prev) => ({
+          ...prev,
+          lastEvaluation: result,
+          isEvaluating: false,
+          questStatus: null,
+        }));
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Please try again.";
-        setState((prev) => ({ ...prev, isEvaluating: false }));
+        setState((prev) => ({ ...prev, isEvaluating: false, questStatus: null }));
         console.error("Quest evaluation failed:", err);
         toastError("Something went wrong, please try again!", {
           description: errorMessage,
