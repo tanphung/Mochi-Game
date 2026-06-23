@@ -2,7 +2,7 @@
 
 // GenLayer Network Configuration (from environment variables with fallbacks)
 export const GENLAYER_CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_GENLAYER_CHAIN_ID || "61999");
-export const GENLAYER_CHAIN_ID_HEX = `0x${GENLAYER_CHAIN_ID.toString(16).toUpperCase()}`;
+export const GENLAYER_CHAIN_ID_HEX = `0x${GENLAYER_CHAIN_ID.toString(16)}`;
 
 export const GENLAYER_NETWORK = {
   chainId: GENLAYER_CHAIN_ID_HEX,
@@ -202,6 +202,14 @@ export async function addGenLayerNetwork(): Promise<void> {
   }
 }
 
+function isExistingNetworkError(error: any): boolean {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    message.includes("already") ||
+    (message.includes("url") && message.includes("used"))
+  );
+}
+
 /**
  * Switch to GenLayer network
  */
@@ -220,7 +228,16 @@ export async function switchToGenLayerNetwork(): Promise<void> {
   } catch (error: any) {
     // If the chain is not added, add it
     if (error.code === 4902) {
-      await addGenLayerNetwork();
+      try {
+        await addGenLayerNetwork();
+      } catch (addError: any) {
+        if (isExistingNetworkError(addError)) {
+          throw new Error(
+            `${GENLAYER_NETWORK.chainName} is already in your wallet. Please select it manually, then connect again.`
+          );
+        }
+        throw addError;
+      }
     } else if (error.code === 4001) {
       throw new Error("User rejected switching the network");
     } else {
