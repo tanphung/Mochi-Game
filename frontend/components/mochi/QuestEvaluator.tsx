@@ -12,8 +12,6 @@ import {
   AlertTriangle,
   XCircle,
   RefreshCw,
-  FileSearch,
-  ShieldCheck,
 } from "lucide-react";
 import { usePetStore } from "@/lib/store/petStore";
 import { QuestEvidence, RequirementStatus } from "@/lib/contracts/MochiPet";
@@ -37,7 +35,6 @@ export function QuestEvaluator({ onBack }: Props) {
   const {
     isEvaluating,
     lastEvaluation,
-    lastEvaluationTxHash,
     evaluateQuest,
     questRequirements: requirements,
     questEvidence: evidence,
@@ -79,41 +76,11 @@ export function QuestEvaluator({ onBack }: Props) {
           <Cat className="h-7 w-7" />
         </div>
         <div className="rounded-2xl rounded-tl-sm bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white/80">
-          Show me your quest submission. I&apos;ll fetch the public evidence on-chain, ask GenLayer AI to judge it, and store the consensus result.
+          Show me your quest submission — I&apos;ll check it before you submit!
         </div>
       </div>
 
       {/* Section 1 — Quest Requirements */}
-      <div className="grid gap-2 sm:grid-cols-3">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
-          <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-teal-200">
-            <FileSearch className="h-4 w-4" />
-            Web evidence
-          </div>
-          <p className="mt-1 text-xs font-semibold text-white/50">
-            Contract fetches public links before the LLM verdict.
-          </p>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
-          <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-teal-200">
-            <Sparkles className="h-4 w-4" />
-            AI judgment
-          </div>
-          <p className="mt-1 text-xs font-semibold text-white/50">
-            Requirements are checked for met, partial, or missing.
-          </p>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
-          <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-teal-200">
-            <ShieldCheck className="h-4 w-4" />
-            Semantic validator
-          </div>
-          <p className="mt-1 text-xs font-semibold text-white/50">
-            Passed is accepted only when every requirement is met.
-          </p>
-        </div>
-      </div>
-
       <div className="mochi-panel space-y-3 p-4">
         <div className="flex items-center gap-2">
           <span className="grid h-7 w-7 place-items-center rounded-full bg-teal-300/15 text-sm font-black text-teal-200">
@@ -229,7 +196,7 @@ export function QuestEvaluator({ onBack }: Props) {
       </button>
       {isEvaluating && (
         <p className="text-center text-[11px] font-semibold text-white/40">
-          GenLayer validators are reaching consensus. This can take 15-60 seconds.
+          GenLayer validators are reaching consensus — this can take 15–60 seconds.
         </p>
       )}
 
@@ -244,42 +211,11 @@ export function QuestEvaluator({ onBack }: Props) {
                   : "bg-amber-400/15 text-amber-300"
               }`}
             >
-              {lastEvaluation.verdict === "passed" ? (
-                <>
-                  <CheckCircle2 className="h-4 w-4" />
-                  PASSED
-                </>
-              ) : (
-                <>
-                  <AlertTriangle className="h-4 w-4" />
-                  NEEDS WORK
-                </>
-              )}
+              {lastEvaluation.verdict === "passed" ? "✅ PASSED" : "⚠️ NEEDS WORK"}
             </span>
             <span className="text-xs font-bold text-white/50">
               Mochi&apos;s confidence: {lastEvaluation.confidence}%
             </span>
-          </div>
-
-          <div className="grid gap-2 rounded-xl border border-white/8 bg-white/[0.03] p-3 text-xs font-semibold text-white/58 sm:grid-cols-3">
-            <div>
-              <div className="font-black uppercase tracking-wider text-white/38">Evidence fetched</div>
-              <div className="mt-1 text-white/80">
-                {lastEvaluation.fetched_count}/{lastEvaluation.evidence_count} public links
-              </div>
-            </div>
-            <div>
-              <div className="font-black uppercase tracking-wider text-white/38">Validator check</div>
-              <div className="mt-1 break-words text-white/80">
-                {lastEvaluation.meaning_check || "semantic_result_checked"}
-              </div>
-            </div>
-            <div>
-              <div className="font-black uppercase tracking-wider text-white/38">GenLayer tx</div>
-              <div className="mt-1 break-all font-mono text-[11px] text-white/80">
-                {lastEvaluationTxHash ?? "confirmed"}
-              </div>
-            </div>
           </div>
 
           {lastEvaluation.summary && (

@@ -17,7 +17,6 @@ __pycache__/
 *.pyd
 /context
 /frontend/.next
-/frontend/.vercel
 /frontend/next-env.d.ts
 /frontend/bun.lock
 /frontend/package-lock.json

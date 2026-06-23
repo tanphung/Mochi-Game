@@ -77,9 +77,6 @@ export interface QuestEvaluation {
   requirements: QuestRequirementResult[];
   suggestions: string[];
   unreachable: string[]; // URLs the AI could not open
-  evidence_count: number;
-  fetched_count: number;
-  meaning_check: string;
 }
 
 // Defensive parser for the LLM JSON result (handles fences, key variants, scales).
@@ -91,9 +88,6 @@ export function parseQuestEvaluation(raw: string): QuestEvaluation {
     requirements: [],
     suggestions: [],
     unreachable: [],
-    evidence_count: 0,
-    fetched_count: 0,
-    meaning_check: "",
   };
   if (!raw || typeof raw !== "string") return fallback;
 
@@ -150,9 +144,6 @@ export function parseQuestEvaluation(raw: string): QuestEvaluation {
     requirements,
     suggestions: toStringArray(obj.suggestions ?? obj.improvements),
     unreachable: toStringArray(obj.unreachable ?? obj.unreachable_urls ?? obj.failed_urls),
-    evidence_count: Math.max(0, Math.round(Number(obj.evidence_count ?? obj.evidenceCount ?? 0) || 0)),
-    fetched_count: Math.max(0, Math.round(Number(obj.fetched_count ?? obj.fetchedCount ?? 0) || 0)),
-    meaning_check: String(obj.meaning_check ?? obj.meaningCheck ?? ""),
   };
 }
 

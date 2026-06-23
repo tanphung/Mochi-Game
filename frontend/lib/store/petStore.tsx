@@ -98,7 +98,6 @@ interface PetState {
   isChatLoading: boolean;
   isEvaluating: boolean;
   lastEvaluation: QuestEvaluation | null;
-  lastEvaluationTxHash: string | null;
   questRequirements: string;
   questEvidence: QuestEvidence[];
   mintedCards: MintedCard[];
@@ -286,7 +285,6 @@ function makeInitialState(): PetState {
     isChatLoading: false,
     isEvaluating: false,
     lastEvaluation: null,
-    lastEvaluationTxHash: null,
     questRequirements: "",
     questEvidence: [{ url: "", note: "" }],
     mintedCards: [],
@@ -1004,12 +1002,7 @@ export function PetProvider({ children }: { children: ReactNode }) {
           const message = err instanceof Error ? err.message : String(err);
           throw new Error(`${message} | tx: ${txHash}`);
         }
-        setState((prev) => ({
-          ...prev,
-          lastEvaluation: result,
-          lastEvaluationTxHash: txHash,
-          isEvaluating: false,
-        }));
+        setState((prev) => ({ ...prev, lastEvaluation: result, isEvaluating: false }));
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Please try again.";
         setState((prev) => ({ ...prev, isEvaluating: false }));

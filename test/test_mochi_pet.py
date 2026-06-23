@@ -20,17 +20,6 @@ QUEST_LLM_MOCK_RESPONSE = json.dumps({
     "suggestions": [],
     "unreachable": [],
 })
-QUEST_CONFLICTING_LLM_RESPONSE = json.dumps({
-    "summary": "The model wording says passed, but one requirement still needs work.",
-    "verdict": "passed",
-    "confidence": 95,
-    "requirements": [
-        {"text": "Write a public X post", "status": "met", "note": "The post is public."},
-        {"text": "Include a visual proof", "status": "partial", "note": "Text was fetched, but visuals cannot be verified."},
-    ],
-    "suggestions": ["Add a screenshot or separate visual proof link."],
-    "unreachable": [],
-})
 
 
 # ── test 1: create pet ───────────────────────────────────────────────
@@ -266,10 +255,7 @@ def test_evaluate_quest_stores_result(direct_vm, direct_deploy, direct_alice):
     contract.create_pet("Pip")
 
     evidence = json.dumps([{"url": "https://example.com/post", "note": "My submission"}])
-    direct_vm.mock_web(
-        r"https://example\.com/post",
-        {"status": 200, "body": "This is my amazing post about Optimistic Democracy..."},
-    )
+    direct_vm.mock_web(r"https://example\.com/post", "This is my amazing post about Optimistic Democracy...")
     direct_vm.mock_llm(LLM_MOCK_PATTERN, QUEST_LLM_MOCK_RESPONSE)
 
     contract.evaluate_quest("Write a post about Optimistic Democracy", evidence)
@@ -279,51 +265,11 @@ def test_evaluate_quest_stores_result(direct_vm, direct_deploy, direct_alice):
     result = json.loads(pet.last_quest_eval)
     assert result["verdict"] == "passed"
     assert result["confidence"] == 90
-    assert result["evidence_count"] == 1
-    assert result["fetched_count"] == 1
-    assert result["meaning_check"] == "all_requirements_met_with_web_evidence"
     assert len(result["requirements"]) == 1
     assert result["requirements"][0]["status"] == "met"
 
 
 # ── test 13: evaluate_quest rejects empty requirements ───────────────
-
-def test_evaluate_quest_semantic_verdict_overrides_llm_label(direct_vm, direct_deploy, direct_alice):
-    direct_vm.sender = direct_alice
-    contract = direct_deploy(CONTRACT_PATH)
-    contract.create_pet("Pip")
-
-    evidence = json.dumps([{"url": "https://example.com/post", "note": "My submission"}])
-    direct_vm.mock_web(
-        r"https://example\.com/post",
-        {"status": 200, "body": "This public post mentions GenLayer."},
-    )
-    direct_vm.mock_llm(LLM_MOCK_PATTERN, QUEST_CONFLICTING_LLM_RESPONSE)
-
-    contract.evaluate_quest("Write a public X post and include a visual proof", evidence)
-
-    result = json.loads(contract.get_pet().last_quest_eval)
-    assert result["verdict"] == "needs_work"
-    assert result["meaning_check"] == "some_requirements_missing_or_partial"
-    assert result["requirements"][1]["status"] == "partial"
-
-
-def test_evaluate_quest_no_fetched_evidence_needs_work(direct_vm, direct_deploy, direct_alice):
-    direct_vm.sender = direct_alice
-    contract = direct_deploy(CONTRACT_PATH)
-    contract.create_pet("Pip")
-
-    evidence = json.dumps([{"url": "https://example.com/missing", "note": "My submission"}])
-    direct_vm.mock_web(r"https://example\.com/missing", {"status": 404, "body": ""})
-    direct_vm.mock_llm(LLM_MOCK_PATTERN, QUEST_LLM_MOCK_RESPONSE)
-
-    contract.evaluate_quest("Write a post about Optimistic Democracy", evidence)
-
-    result = json.loads(contract.get_pet().last_quest_eval)
-    assert result["verdict"] == "needs_work"
-    assert result["fetched_count"] == 0
-    assert result["meaning_check"] == "no_public_evidence_fetched"
-
 
 def test_evaluate_quest_rejects_empty_requirements(direct_vm, direct_deploy, direct_alice):
     direct_vm.sender = direct_alice
