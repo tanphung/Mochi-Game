@@ -8,7 +8,7 @@ Mochi is a GenLayer dApp where each wallet raises an on-chain pet, chats with an
 - Production deployment: https://frontend-pily8ks18-vandas.vercel.app
 - GitHub repo: https://github.com/tanphung/Mochi-Game
 - Network: GenLayer Bradbury Testnet
-- Current contract: `0x48d98714951f79AcAFF29926844D429ef433a7CE`
+- Current contract: `0xCf3b9e426c56248762786d21a8a5fd816212fc6f`
 - Previous contract used by the older submission: `0xFb3bb2eE4eBD8e2ff7568984FD84594D0D2E2F1e`
 
 ## Why This Needs GenLayer
@@ -73,7 +73,7 @@ NEXT_PUBLIC_GENLAYER_RPC_URL=https://studio.genlayer.com/api
 NEXT_PUBLIC_GENLAYER_CHAIN_ID=61999
 NEXT_PUBLIC_GENLAYER_CHAIN_NAME=GenLayer Studio
 NEXT_PUBLIC_GENLAYER_SYMBOL=GEN
-NEXT_PUBLIC_CONTRACT_ADDRESS=0x48d98714951f79AcAFF29926844D429ef433a7CE
+NEXT_PUBLIC_CONTRACT_ADDRESS=0xCf3b9e426c56248762786d21a8a5fd816212fc6f
 ```
 
 Run the frontend:
@@ -107,7 +107,7 @@ Direct tests:
 pytest test/test_mochi_pet.py -v
 ```
 
-Note: on this Windows machine, direct-mode `pytest` currently fails before contract execution because `gltest.direct` cannot unlink its temporary stdin file (`PermissionError: [WinError 32]`). This reproduced with Python 3.14 and the installed Python 3.13 Store runtime, so use a known-compatible non-Store Python/WSL/Linux environment for direct-mode verification.
+On Windows, `test/conftest.py` defers `gltest.direct` temporary stdin cleanup until after stdin is restored, so direct-mode tests can run locally without patching installed site-packages.
 
 ## Demo Checklist
 
@@ -123,7 +123,7 @@ For the final video, show the full GenLayer loop:
 
 ## Deployment Notes
 
-- Latest contract deployed successfully to Bradbury: `0x48d98714951f79AcAFF29926844D429ef433a7CE`.
+- Latest contract deployed successfully to Bradbury: `0xCf3b9e426c56248762786d21a8a5fd816212fc6f`.
 - Latest Vercel production deployment is ready: https://frontend-pily8ks18-vandas.vercel.app
 - Stable Vercel alias from the deployment: https://frontend-vandas.vercel.app
 - The Vercel project was created under team scope `vandas` as `frontend`.

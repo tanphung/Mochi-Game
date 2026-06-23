@@ -266,7 +266,10 @@ def test_evaluate_quest_stores_result(direct_vm, direct_deploy, direct_alice):
     contract.create_pet("Pip")
 
     evidence = json.dumps([{"url": "https://example.com/post", "note": "My submission"}])
-    direct_vm.mock_web(r"https://example\.com/post", "This is my amazing post about Optimistic Democracy...")
+    direct_vm.mock_web(
+        r"https://example\.com/post",
+        {"status": 200, "body": "This is my amazing post about Optimistic Democracy..."},
+    )
     direct_vm.mock_llm(LLM_MOCK_PATTERN, QUEST_LLM_MOCK_RESPONSE)
 
     contract.evaluate_quest("Write a post about Optimistic Democracy", evidence)
@@ -291,7 +294,10 @@ def test_evaluate_quest_semantic_verdict_overrides_llm_label(direct_vm, direct_d
     contract.create_pet("Pip")
 
     evidence = json.dumps([{"url": "https://example.com/post", "note": "My submission"}])
-    direct_vm.mock_web(r"https://example\.com/post", "This public post mentions GenLayer.")
+    direct_vm.mock_web(
+        r"https://example\.com/post",
+        {"status": 200, "body": "This public post mentions GenLayer."},
+    )
     direct_vm.mock_llm(LLM_MOCK_PATTERN, QUEST_CONFLICTING_LLM_RESPONSE)
 
     contract.evaluate_quest("Write a public X post and include a visual proof", evidence)
@@ -308,7 +314,7 @@ def test_evaluate_quest_no_fetched_evidence_needs_work(direct_vm, direct_deploy,
     contract.create_pet("Pip")
 
     evidence = json.dumps([{"url": "https://example.com/missing", "note": "My submission"}])
-    direct_vm.mock_web(r"https://example\.com/missing", "")
+    direct_vm.mock_web(r"https://example\.com/missing", {"status": 404, "body": ""})
     direct_vm.mock_llm(LLM_MOCK_PATTERN, QUEST_LLM_MOCK_RESPONSE)
 
     contract.evaluate_quest("Write a post about Optimistic Democracy", evidence)

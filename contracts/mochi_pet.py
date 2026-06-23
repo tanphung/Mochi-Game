@@ -151,6 +151,10 @@ def _http_get_text(url: str) -> str:
     Must be called from within a non-deterministic context (leader_fn).
     """
     resp = gl.nondet.web.get(url)
+    if isinstance(resp, str):
+        return resp
+    if isinstance(resp, (bytes, bytearray)):
+        return bytes(resp).decode("utf-8", "replace")
     status = getattr(resp, "status", 0)
     if not (200 <= status < 300):
         return ""
@@ -587,26 +591,30 @@ Rules:
 - suggestions may be empty.
 """
 
-            raw = str(gl.nondet.exec_prompt(prompt)).strip()
-            if not raw:
-                raise gl.vm.UserError("[LLM_ERROR] Empty evaluation response")
+            llm_response = gl.nondet.exec_prompt(prompt)
+            if isinstance(llm_response, dict):
+                obj = llm_response
+            else:
+                raw = str(llm_response).strip()
+                if not raw:
+                    raise gl.vm.UserError("[LLM_ERROR] Empty evaluation response")
 
-            # Strip markdown fences if present
-            if "```" in raw:
-                m = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw, re.I)
-                if m:
-                    raw = m.group(1).strip()
+                # Strip markdown fences if present
+                if "```" in raw:
+                    m = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw, re.I)
+                    if m:
+                        raw = m.group(1).strip()
 
-            start = raw.find("{")
-            end = raw.rfind("}")
-            if start == -1 or end == -1 or end <= start:
-                raise gl.vm.UserError("[LLM_ERROR] No JSON object in evaluation response")
-            raw = raw[start:end + 1]
+                start = raw.find("{")
+                end = raw.rfind("}")
+                if start == -1 or end == -1 or end <= start:
+                    raise gl.vm.UserError("[LLM_ERROR] No JSON object in evaluation response")
+                raw = raw[start:end + 1]
 
-            try:
-                obj = json.loads(raw)
-            except Exception:
-                raise gl.vm.UserError("[LLM_ERROR] Evaluation response is not valid JSON")
+                try:
+                    obj = json.loads(raw)
+                except Exception:
+                    raise gl.vm.UserError("[LLM_ERROR] Evaluation response is not valid JSON")
 
             confidence = _parse_confidence(obj.get("confidence", 50))
 
