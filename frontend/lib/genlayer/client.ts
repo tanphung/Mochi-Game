@@ -186,6 +186,37 @@ export async function getCurrentChainId(): Promise<string | null> {
 }
 
 /**
+ * Add GenLayer network to MetaMask
+ */
+export async function addGenLayerNetwork(): Promise<void> {
+  const provider = getEthereumProvider();
+
+  if (!provider) {
+    throw new Error("No wallet detected");
+  }
+
+  try {
+    await provider.request({
+      method: "wallet_addEthereumChain",
+      params: [GENLAYER_NETWORK],
+    });
+  } catch (error: any) {
+    if (error.code === 4001) {
+      throw new Error("User rejected adding the network");
+    }
+    throw new Error(`Failed to add GenLayer network: ${error.message}`);
+  }
+}
+
+function isExistingNetworkError(error: any): boolean {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    message.includes("already") ||
+    (message.includes("url") && message.includes("used"))
+  );
+}
+
+/**
  * Switch to GenLayer network
  */
 export async function switchToGenLayerNetwork(): Promise<void> {
@@ -201,11 +232,18 @@ export async function switchToGenLayerNetwork(): Promise<void> {
       params: [{ chainId: GENLAYER_CHAIN_ID_HEX }],
     });
   } catch (error: any) {
+    // If the chain is not added, add it
     if (error.code === 4902) {
-      throw new Error(
-        `${GENLAYER_NETWORK.chainName} is not selectable from this wallet profile. ` +
-          `Please open your wallet network menu, select the existing GenLayer Studio/Studionet network, then try again.`
-      );
+      try {
+        await addGenLayerNetwork();
+      } catch (addError: any) {
+        if (isExistingNetworkError(addError)) {
+          throw new Error(
+            `${GENLAYER_NETWORK.chainName} is already in your wallet. Please select it manually, then connect again.`
+          );
+        }
+        throw addError;
+      }
     } else if (error.code === 4001) {
       throw new Error("User rejected switching the network");
     } else {
