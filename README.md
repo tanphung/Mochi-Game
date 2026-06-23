@@ -9,7 +9,7 @@ Mochi is a GenLayer dApp where each wallet raises one on-chain pet, sends care a
 - Network used by the submitted app: GenLayer Studio
 - Chain ID: `61999`
 - RPC URL: `https://studio.genlayer.com/api`
-- Current live contract: `0xFb3bb2eE4eBD8e2ff7568984FD84594D0D2E2F1e`
+- Current live contract: `0x895c2932eb683dB84f420953d8f0CFb21F07dF32`
 
 ## Why Mochi Needs GenLayer
 
@@ -78,7 +78,7 @@ NEXT_PUBLIC_GENLAYER_RPC_URL=https://studio.genlayer.com/api
 NEXT_PUBLIC_GENLAYER_CHAIN_ID=61999
 NEXT_PUBLIC_GENLAYER_CHAIN_NAME=GenLayer Studio
 NEXT_PUBLIC_GENLAYER_SYMBOL=GEN
-NEXT_PUBLIC_CONTRACT_ADDRESS=0xFb3bb2eE4eBD8e2ff7568984FD84594D0D2E2F1e
+NEXT_PUBLIC_CONTRACT_ADDRESS=0x895c2932eb683dB84f420953d8f0CFb21F07dF32
 ```
 
 Run the frontend:

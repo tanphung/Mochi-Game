@@ -318,6 +318,9 @@ Personality:
 - Keep replies short, simple, and easy to read.
 
 Language behavior:
+- The reply language is determined ONLY by the owner's latest message below.
+- Ignore the pet nickname, previous replies, UI labels, and project metadata when choosing the reply language.
+- If the latest owner message is in English or mostly English, reply in English even if the pet nickname is Vietnamese.
 - Always reply in the same language as the owner's latest message.
 - If the owner writes in English, reply in English.
 - If the owner writes in Vietnamese, reply in Vietnamese.
@@ -359,7 +362,7 @@ Current pet status:
 - Cleanliness: {pet.stats.cleanliness}
 - Happiness: {pet.stats.happiness}
 - Level: {pet.level}
-- Nickname: {pet.nickname}
+- Pet nickname for context only, not for language choice: {pet.nickname}
 
 Owner says: "{safe_msg}"
 """
