@@ -10,7 +10,6 @@ import {
   Home,
   IdCard,
   LogOut,
-  Map,
   MessageCircle,
   Save,
   Trophy,
@@ -31,9 +30,8 @@ import { CardMinter } from "./CardMinter";
 import { MemoryTimeline } from "./MemoryTimeline";
 import { MilestoneGallery } from "./MilestoneGallery";
 import { QuestEvaluator } from "./QuestEvaluator";
-import { RoadmapSection } from "./RoadmapSection";
 
-type ActiveTab = "home" | "inventory" | "card" | "memory" | "roadmap" | "quest";
+type ActiveTab = "home" | "inventory" | "card" | "memory" | "quest";
 type MemorySubTab = "timeline" | "milestones";
 
 const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
@@ -41,7 +39,6 @@ const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
   { id: "inventory", label: "Inventory", icon: <Backpack className="h-4 w-4" /> },
   { id: "card", label: "Card", icon: <IdCard className="h-4 w-4" /> },
   { id: "memory", label: "Memory", icon: <BookOpen className="h-4 w-4" /> },
-  { id: "roadmap", label: "Roadmap", icon: <Map className="h-4 w-4" /> },
 ];
 
 export function Dashboard() {
@@ -274,12 +271,6 @@ export function Dashboard() {
               </div>
               {memorySubTab === "timeline" && <MemoryTimeline />}
               {memorySubTab === "milestones" && <MilestoneGallery />}
-            </div>
-          )}
-
-          {tab === "roadmap" && (
-            <div className="animate-fade-in">
-              <RoadmapSection compact />
             </div>
           )}
 

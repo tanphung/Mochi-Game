@@ -2,7 +2,6 @@
 
 import { Cat, CircleDot, Sparkles, WalletCards } from "lucide-react";
 import { useWallet } from "@/lib/genlayer/WalletProvider";
-import { RoadmapSection } from "./RoadmapSection";
 
 const showcaseCards = [
   {
@@ -210,8 +209,6 @@ export function LandingPage() {
             </div>
           </div>
         </section>
-
-        <RoadmapSection />
       </main>
     </div>
   );
