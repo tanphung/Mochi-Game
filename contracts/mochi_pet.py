@@ -70,6 +70,27 @@ def _parse_confidence(value) -> int:
         return 50
 
 
+def _semantic_verdict(requirements: list, fetched_count: int) -> str:
+    """Derive the final verdict from requirement meaning, not model wording."""
+    if fetched_count <= 0 or len(requirements) == 0:
+        return "needs_work"
+    for req in requirements:
+        if not isinstance(req, dict) or req.get("status") != "met":
+            return "needs_work"
+    return "passed"
+
+
+def _meaning_check_for(verdict: str, requirements: list, fetched_count: int) -> str:
+    expected = _semantic_verdict(requirements, fetched_count)
+    if verdict != expected:
+        return "invalid_semantic_verdict"
+    if verdict == "passed":
+        return "all_requirements_met_with_web_evidence"
+    if fetched_count <= 0:
+        return "no_public_evidence_fetched"
+    return "some_requirements_missing_or_partial"
+
+
 def _is_x_url(url: str) -> bool:
     """Detect a public X/Twitter status (post) link."""
     low = url.lower()
@@ -587,9 +608,6 @@ Rules:
             except Exception:
                 raise gl.vm.UserError("[LLM_ERROR] Evaluation response is not valid JSON")
 
-            verdict_raw = str(obj.get("verdict", "needs_work")).lower()
-            verdict = "passed" if "pass" in verdict_raw else "needs_work"
-
             confidence = _parse_confidence(obj.get("confidence", 50))
 
             reqs_raw = obj.get("requirements", [])
@@ -617,13 +635,20 @@ Rules:
 
             normalized = {
                 "summary": str(obj.get("summary", ""))[:500],
-                "verdict": verdict,
+                "verdict": _semantic_verdict(requirements, len(fetched_parts)),
                 "confidence": confidence,
                 "requirements": requirements,
                 "suggestions": suggestions,
                 # Always the contract's own fetch-failure list (not the LLM's echo)
                 "unreachable": [str(u) for u in unreachable if str(u).strip()],
+                "evidence_count": len(filled),
+                "fetched_count": len(fetched_parts),
             }
+            normalized["meaning_check"] = _meaning_check_for(
+                normalized["verdict"],
+                requirements,
+                normalized["fetched_count"],
+            )
 
             return json.dumps(normalized)
 
@@ -644,15 +669,28 @@ Rules:
             confidence = obj.get("confidence")
             if not isinstance(confidence, int) or confidence < 0 or confidence > 100:
                 return False
+            evidence_count = obj.get("evidence_count")
+            fetched_count = obj.get("fetched_count")
+            if not isinstance(evidence_count, int) or evidence_count != len(filled):
+                return False
+            if not isinstance(fetched_count, int) or fetched_count < 0 or fetched_count > evidence_count:
+                return False
             reqs = obj.get("requirements", [])
-            if not isinstance(reqs, list):
+            if not isinstance(reqs, list) or len(reqs) == 0 or len(reqs) > 15:
                 return False
             valid_statuses = {"met", "partial", "missing"}
             for r in reqs:
                 if not isinstance(r, dict):
                     return False
-                if str(r.get("status", "")).lower() not in valid_statuses:
+                text = str(r.get("text", "")).strip()
+                status = str(r.get("status", "")).lower()
+                if not text or status not in valid_statuses:
                     return False
+            expected_verdict = _semantic_verdict(reqs, fetched_count)
+            if obj.get("verdict") != expected_verdict:
+                return False
+            if obj.get("meaning_check") != _meaning_check_for(expected_verdict, reqs, fetched_count):
+                return False
             return True
 
         eval_json = gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
