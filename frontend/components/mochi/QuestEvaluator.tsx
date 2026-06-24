@@ -33,6 +33,72 @@ const STATUS_META: Record<
   missing: { icon: <XCircle className="h-4 w-4" />, cls: "text-rose-300" },
 };
 
+const SAMPLE_SUBMISSION_URL = "https://x.com/tanphung000/status/2069270294045585798";
+
+const SAMPLE_QUEST_REQUIREMENTS = String.raw`Campaign: Bring Back NFTs
+NFTs lost the plot with high mint prices and empty promises. Rally is doing the opposite: a free mint that rewards people who actually show up and participate.
+
+Your goal is to post on X about why NFTs went wrong and what they should have been, then connect it to what Rally is building with the Wingston NFT
+
+1. What Broke NFTs?
+
+Prepare your content for submission
+Description
+Post your take on X: what went wrong with NFTs and what they should have been all along. Make it personal, sharp, and authentic. This is about your unique perspective on the market's past and future.
+
+Proposed angles:
+
+Focus on the problem of high mint prices creating barriers to entry.
+
+Discuss how the focus on floor price and speculation killed genuine community building.
+
+Critique the trend of projects with big promises but no real utility or follow-through.
+
+Rules
+You must mention @rallyonchain.
+
+Your post must be an original take in any language.
+
+Do not start the post with a mention or hashtag.
+
+Em dashes (—) are not allowed.
+
+Highly generic or AI-generated-looking content is not allowed.
+
+Style
+Your take should be sharp, personal, and opinionated. We're looking for genuine analysis on the state of NFTs, not generic hype. Explain why the space needs a reset and how Wingston represents that change.
+
+Knowledge Base
+What is Wingston?
+
+Wingston is Rally's community-first, free-mint NFT collection with top-tier art and real utility. It's a product NFT, directly tied to the Rally protocol and its business model. This campaign is about sharing your take on the NFT space: what went wrong, and why a free mint that rewards participation over speculation is a healthier model. You'll then connect this perspective to Wingston.
+
+Why Wingston is the Reset
+
+Wingston represents a fundamental shift away from the speculative hype that dominated the last NFT cycle.
+
+Free Mint: Access isn't determined by your ability to pay a high price. It's about participation.
+
+Rewards Participation: The model is built to reward people who actively contribute to the ecosystem, not just those who flip for a quick profit.
+
+Real Utility: Wingston NFTs have tangible, working utilities within the Rally protocol from day one, not just vague promises on a roadmap.
+
+Wingston Utilities
+
+Staking: Stake your Wingston NFT to earn RLPs (Rally Protocol's points) every day.
+
+VIP Community: Gain access to a private, token-gated space for Wingston holders with exclusive campaigns and opportunities.
+
+Reputation Boost: Holding a Wingston will provide a boost to your Rally Score, a reputation metric that improves your standing and earning potential within the Rally ecosystem (Rally Score is in development).
+
+How to Get Whitelisted There are two paths to get a whitelist spot for the Wingston mint:
+
+Existing Creators: If you are already whitelisted from previous Rally activities, you're in. New Participants: To earn a spot, you must join at least 3 Rally campaigns and rank in the weekly Top 425 on the leaderboard. Performance is key.
+
+Talking Points
+
+A free mint changes who an NFT is for, shifting the focus from wealth to community. Rewarding genuine participation and contribution is more sustainable than rewarding pure speculation. Wingston isn't just art; it has utilities that are already live and providing value within the Rally protocol.`;
+
 export function QuestEvaluator({ onBack }: Props) {
   const {
     isEvaluating,
@@ -55,6 +121,18 @@ export function QuestEvaluator({ onBack }: Props) {
   const addEvidence = () => setEvidence((list) => [...list, { url: "", note: "" }]);
   const removeEvidence = (i: number) =>
     setEvidence((list) => list.filter((_, idx) => idx !== i));
+  const fillExample = () => {
+    setRequirements(SAMPLE_QUEST_REQUIREMENTS);
+    setEvidence([
+      {
+        url: SAMPLE_SUBMISSION_URL,
+        note: "Example X post for the Rally Wingston NFT quest",
+      },
+    ]);
+    setReqError(false);
+    setEvidenceError(false);
+    setResultDismissed(true);
+  };
 
   const handleEvaluate = async () => {
     const noReq = !requirements.trim();
@@ -91,8 +169,17 @@ export function QuestEvaluator({ onBack }: Props) {
         <div className="mochi-logo-mark shrink-0">
           <Cat className="h-7 w-7" />
         </div>
-        <div className="rounded-2xl rounded-tl-sm bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white/80">
-          Show me your quest submission — I&apos;ll check it before you submit!
+        <div className="flex flex-1 flex-col gap-3 rounded-2xl rounded-tl-sm bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white/80 sm:flex-row sm:items-center sm:justify-between">
+          <span>Show me your quest submission — I&apos;ll check it before you submit!</span>
+          <button
+            type="button"
+            onClick={fillExample}
+            disabled={isEvaluating}
+            className="mochi-ghost-button shrink-0 px-3 py-2 text-xs disabled:opacity-50"
+          >
+            <Sparkles className="h-4 w-4" />
+            Fill demo example
+          </button>
         </div>
       </div>
 

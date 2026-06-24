@@ -29,8 +29,8 @@ Without GenLayer, this review would be a normal off-chain AI checker controlled 
 3. Create or sync a Mochi pet for the connected wallet.
 4. Run on-chain care actions: feed, play, sleep, clean.
 5. Chat with Mochi; the AI reply is produced through GenLayer consensus and stored as `last_response`.
-6. Open "Let Mochi Check Your Quest".
-7. Paste quest requirements and at least one public evidence URL.
+6. Open the featured "Quest" tab or "Let Mochi Check Your Quest".
+7. Paste quest requirements and at least one public evidence URL, or use "Fill demo example" for a reviewer-ready sample.
 8. Submit the evaluation transaction and wait for consensus.
 9. Read the stored verdict, confidence, requirement statuses, suggestions, and unreachable links from contract state.
 
@@ -50,6 +50,8 @@ Without GenLayer, this review would be a normal off-chain AI checker controlled 
 - Uses `genlayer-js` to read and write the deployed contract.
 - Wallet connect is separated from network switching so users can enter the app even if their wallet already has a GenLayer Studio RPC entry.
 - Quest Evaluator shows transaction progress, links to the submitted transaction in GenLayer Studio Explorer, waits for GenLayer consensus, and then reads the on-chain result back from the contract.
+- Quest is surfaced as a highlighted dashboard tab, with a one-click demo autofill so reviewers can test the full flow without preparing their own quest text.
+- The dashboard includes a roadmap tab showing the current live pet features and future companion/social/gameplay plans.
 
 ## Project Structure
 
@@ -60,6 +62,7 @@ Without GenLayer, this review would be a normal off-chain AI checker controlled 
 - `frontend/lib/genlayer/client.ts` - wallet and GenLayer network configuration.
 - `frontend/lib/store/petStore.tsx` - app state and contract flow orchestration.
 - `frontend/components/mochi/QuestEvaluator.tsx` - quest submission and verdict UX.
+- `frontend/components/mochi/RoadmapSection.tsx` - in-app roadmap UX.
 
 ## Local Setup
 
@@ -113,9 +116,10 @@ For the final demo video:
 
 1. Open https://mochi-game-frontend.vercel.app.
 2. Connect wallet.
-3. Show the network and contract badge in the dashboard.
-4. Create or sync a Mochi pet.
-5. Run one care action.
-6. Chat with Mochi and show the stored AI reply.
-7. Open Quest Evaluator, paste requirements, add a public evidence URL, and submit.
-8. Show the GenLayer consensus loading state and the final stored verdict.
+3. Create or sync a Mochi pet.
+4. Run one care action.
+5. Chat with Mochi and show the stored AI reply.
+6. Open the highlighted Quest tab.
+7. Click "Fill demo example", review the prefilled requirements and X submission URL, then submit.
+8. Show the GenLayer transaction link, consensus loading state, and final stored verdict.
+9. Open the Roadmap tab to show the product direction.

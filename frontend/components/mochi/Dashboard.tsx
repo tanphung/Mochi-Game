@@ -10,6 +10,7 @@ import {
   Home,
   IdCard,
   LogOut,
+  Map,
   MessageCircle,
   Save,
   Trophy,
@@ -30,15 +31,18 @@ import { CardMinter } from "./CardMinter";
 import { MemoryTimeline } from "./MemoryTimeline";
 import { MilestoneGallery } from "./MilestoneGallery";
 import { QuestEvaluator } from "./QuestEvaluator";
+import { RoadmapSection } from "./RoadmapSection";
 
-type ActiveTab = "home" | "inventory" | "card" | "memory" | "quest";
+type ActiveTab = "home" | "quest" | "inventory" | "card" | "memory" | "roadmap";
 type MemorySubTab = "timeline" | "milestones";
 
-const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
+const tabs: { id: ActiveTab; label: string; icon: React.ReactNode; featured?: boolean; badge?: string }[] = [
   { id: "home", label: "Home", icon: <Home className="h-4 w-4" /> },
+  { id: "quest", label: "Quest", icon: <ClipboardCheck className="h-4 w-4" />, featured: true, badge: "AI" },
   { id: "inventory", label: "Inventory", icon: <Backpack className="h-4 w-4" /> },
   { id: "card", label: "Card", icon: <IdCard className="h-4 w-4" /> },
   { id: "memory", label: "Memory", icon: <BookOpen className="h-4 w-4" /> },
+  { id: "roadmap", label: "Roadmap", icon: <Map className="h-4 w-4" /> },
 ];
 
 export function Dashboard() {
@@ -128,17 +132,24 @@ export function Dashboard() {
 
       <main className="relative z-10 flex-1">
         <div className="mochi-container py-4">
-          <div className="mb-4 flex gap-2 overflow-x-auto rounded-full border border-white/8 bg-black/20 p-1">
+          <div className="mochi-main-tabs mb-4">
             {tabs.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setTab(item.id)}
-                className={`mochi-tab shrink-0 text-sm font-black ${
+                className={`mochi-tab min-w-0 text-sm font-black ${
+                  item.featured ? "mochi-tab-featured" : ""
+                } ${
                   tab === item.id ? "mochi-tab-active" : "hover:text-white"
                 }`}
               >
                 {item.icon}
-                {item.label}
+                <span className="truncate">{item.label}</span>
+                {item.badge && (
+                  <span className="rounded-full bg-white/18 px-1.5 py-0.5 text-[9px] font-black leading-none text-white/86">
+                    {item.badge}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -271,6 +282,12 @@ export function Dashboard() {
               </div>
               {memorySubTab === "timeline" && <MemoryTimeline />}
               {memorySubTab === "milestones" && <MilestoneGallery />}
+            </div>
+          )}
+
+          {tab === "roadmap" && (
+            <div className="animate-fade-in">
+              <RoadmapSection compact />
             </div>
           )}
 

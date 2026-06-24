@@ -554,6 +554,37 @@
     border-color: rgb(53 236 255 / 0.38);
   }
 
+  .mochi-main-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    border-radius: 18px;
+    border: 1px solid rgb(53 236 255 / 0.18);
+    background:
+      linear-gradient(135deg, rgb(53 236 255 / 0.09), rgb(255 79 216 / 0.07)),
+      rgb(8 13 34 / 0.62);
+    padding: 8px;
+    box-shadow:
+      0 18px 56px rgb(14 16 56 / 0.24),
+      inset 0 1px 0 rgb(255 255 255 / 0.08);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  @media (min-width: 640px) {
+    .mochi-main-tabs {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .mochi-main-tabs {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      border-radius: 999px;
+      padding: 6px;
+    }
+  }
+
   .mochi-tab {
     display: inline-flex;
     align-items: center;
@@ -561,16 +592,31 @@
     gap: 8px;
     border-radius: 999px;
     padding: 10px 14px;
-    color: rgb(248 250 252 / 0.58);
-    border: 1px solid transparent;
-    transition: all 0.2s ease;
+    color: rgb(248 250 252 / 0.74);
+    border: 1px solid rgb(255 255 255 / 0.08);
+    background: rgb(255 255 255 / 0.045);
+    transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  }
+
+  .mochi-tab:hover {
+    border-color: rgb(53 236 255 / 0.28);
+    background: rgb(53 236 255 / 0.08);
+    transform: translateY(-1px);
+  }
+
+  .mochi-tab-featured {
+    color: #ffffff;
+    border-color: rgb(255 233 106 / 0.30);
+    background: linear-gradient(135deg, rgb(53 236 255 / 0.13), rgb(255 79 216 / 0.13));
   }
 
   .mochi-tab-active {
     color: #ffffff;
-    background: linear-gradient(135deg, rgb(53 236 255 / 0.18), rgb(255 79 216 / 0.16));
-    border-color: rgb(53 236 255 / 0.36);
-    box-shadow: 0 0 22px rgb(53 236 255 / 0.10);
+    background: linear-gradient(135deg, rgb(53 236 255 / 0.24), rgb(36 72 255 / 0.20), rgb(255 79 216 / 0.22));
+    border-color: rgb(53 236 255 / 0.46);
+    box-shadow:
+      0 0 22px rgb(53 236 255 / 0.12),
+      0 10px 28px rgb(36 72 255 / 0.16);
   }
 
   .mochi-stat-fill {
