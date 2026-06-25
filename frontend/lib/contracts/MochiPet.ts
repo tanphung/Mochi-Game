@@ -60,6 +60,7 @@ export type ItemCategory = "hat" | "glasses" | "necklace" | "shirt" | "handheld"
 export interface QuestEvidence {
   url: string;
   note: string;
+  text?: string;
 }
 
 export type RequirementStatus = "met" | "partial" | "missing";
@@ -72,11 +73,30 @@ export interface QuestRequirementResult {
 
 export interface QuestEvaluation {
   summary: string;
+  decision_reason?: string;
   verdict: "passed" | "needs_work";
   confidence: number; // 0-100
   requirements: QuestRequirementResult[];
   suggestions: string[];
   unreachable: string[]; // URLs the AI could not open
+  checked_urls?: string[];
+  evidence_count?: number;
+  fetched_count?: number;
+  met_count?: number;
+  partial_count?: number;
+  missing_count?: number;
+  mode?: string;
+}
+
+export interface QuestCase {
+  quest_id: string;
+  owner_hex: string;
+  requirements: string;
+  evidence_json: string;
+  result_json: string;
+  status: "evaluated" | "appealed" | string;
+  appeal_count: number;
+  created_at: string;
 }
 
 // Defensive parser for the LLM JSON result (handles fences, key variants, scales).
@@ -137,14 +157,62 @@ export function parseQuestEvaluation(raw: string): QuestEvaluation {
   const toStringArray = (v: unknown): string[] =>
     Array.isArray(v) ? v.map((x) => String(x)).filter((s) => s.trim().length > 0) : [];
 
+  const toNumber = (v: unknown): number | undefined => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : undefined;
+  };
+
   return {
     summary: String(obj.summary ?? obj.message ?? ""),
+    decision_reason: String(obj.decision_reason ?? obj.reason ?? ""),
     verdict,
     confidence,
     requirements,
     suggestions: toStringArray(obj.suggestions ?? obj.improvements),
     unreachable: toStringArray(obj.unreachable ?? obj.unreachable_urls ?? obj.failed_urls),
+    checked_urls: toStringArray(obj.checked_urls ?? obj.checkedUrls),
+    evidence_count: toNumber(obj.evidence_count ?? obj.evidenceCount),
+    fetched_count: toNumber(obj.fetched_count ?? obj.fetchedCount),
+    met_count: toNumber(obj.met_count ?? obj.metCount),
+    partial_count: toNumber(obj.partial_count ?? obj.partialCount),
+    missing_count: toNumber(obj.missing_count ?? obj.missingCount),
+    mode: typeof obj.mode === "string" ? obj.mode : undefined,
   };
+}
+
+function unwrapResult(value: unknown): unknown {
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return record.value ?? record.result ?? record.data ?? record.calldata ?? value;
+  }
+  return value;
+}
+
+function normalizeQuestCase(value: unknown): QuestCase | null {
+  const raw = unwrapResult(value);
+  if (!raw || typeof raw !== "object") return null;
+  const record = raw as Record<string, unknown>;
+  const questId = String(record.quest_id ?? record.questId ?? "");
+  if (!questId.trim()) return null;
+  return {
+    quest_id: questId,
+    owner_hex: String(record.owner_hex ?? record.ownerHex ?? ""),
+    requirements: String(record.requirements ?? ""),
+    evidence_json: String(record.evidence_json ?? record.evidenceJson ?? "[]"),
+    result_json: String(record.result_json ?? record.resultJson ?? ""),
+    status: String(record.status ?? "evaluated"),
+    appeal_count: Number(record.appeal_count ?? record.appealCount ?? 0) || 0,
+    created_at: String(record.created_at ?? record.createdAt ?? ""),
+  };
+}
+
+function normalizeQuestCases(value: unknown): QuestCase[] {
+  const raw = unwrapResult(value);
+  const list = Array.isArray(raw) ? raw : [];
+  return list
+    .map(normalizeQuestCase)
+    .filter((entry): entry is QuestCase => entry !== null)
+    .reverse();
 }
 
 // ── Client factory ────────────────────────────────────────────────────
@@ -479,6 +547,30 @@ class MochiPetContract {
     return (result as unknown as MintedCard[]) ?? [];
   }
 
+  async getQuestCases(callerAddress?: string): Promise<QuestCase[]> {
+    const client = makeReadClient(callerAddress ?? this.account);
+    const result = await client.readContract({
+      address: this.contractAddress,
+      functionName: "get_quest_cases",
+      args: [],
+      transactionHashVariant: TransactionHashVariant.LATEST_NONFINAL,
+      jsonSafeReturn: true,
+    });
+    return normalizeQuestCases(result);
+  }
+
+  async getQuestCase(questId: string, callerAddress?: string): Promise<QuestCase | null> {
+    const client = makeReadClient(callerAddress ?? this.account);
+    const result = await client.readContract({
+      address: this.contractAddress,
+      functionName: "get_quest_case",
+      args: [questId],
+      transactionHashVariant: TransactionHashVariant.LATEST_NONFINAL,
+      jsonSafeReturn: true,
+    });
+    return normalizeQuestCase(result);
+  }
+
   // ── write functions ───────────────────────────────────────────────
 
   async createPet(nickname: string): Promise<void> {
@@ -579,6 +671,28 @@ class MochiPetContract {
       address: this.contractAddress,
       functionName: "evaluate_quest",
       args: [requirements, JSON.stringify(evidence)],
+      value: BigInt(0),
+    });
+    options?.onTxHash?.(txHash);
+    try {
+      await checkReceipt(makeReadClient(this.account), txHash);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`${message} | tx: ${txHash}`);
+    }
+    return txHash;
+  }
+
+  async appealQuest(
+    questId: string,
+    extraEvidence: QuestEvidence[],
+    options?: { onTxHash?: (txHash: string) => void },
+  ): Promise<string> {
+    const client = await makeWriteClient(this.account);
+    const txHash = await client.writeContract({
+      address: this.contractAddress,
+      functionName: "appeal_quest",
+      args: [questId, JSON.stringify(extraEvidence)],
       value: BigInt(0),
     });
     options?.onTxHash?.(txHash);

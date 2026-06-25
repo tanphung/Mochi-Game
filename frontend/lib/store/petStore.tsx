@@ -17,6 +17,7 @@ import {
   ItemCategory,
   QuestEvidence,
   QuestEvaluation,
+  QuestCase,
   parseQuestEvaluation,
 } from "@/lib/contracts/MochiPet";
 import { getContractAddress } from "@/lib/genlayer/client";
@@ -100,6 +101,7 @@ interface PetState {
   questStatus: "submitting" | "consensus" | "reading" | null;
   questTxHash: string | null;
   lastEvaluation: QuestEvaluation | null;
+  questCases: QuestCase[];
   questRequirements: string;
   questEvidence: QuestEvidence[];
   mintedCards: MintedCard[];
@@ -248,6 +250,7 @@ interface PetStoreContext extends PetState {
   performAction: (action: ActionType) => Promise<void>;
   sendChat: (message: string) => Promise<void>;
   evaluateQuest: (requirements: string, evidence: QuestEvidence[]) => Promise<void>;
+  appealQuest: (questId: string, evidence: QuestEvidence[]) => Promise<void>;
   setQuestRequirements: (value: string) => void;
   setQuestEvidence: (value: QuestEvidence[] | ((prev: QuestEvidence[]) => QuestEvidence[])) => void;
   setNickname: (nick: string) => Promise<void>;
@@ -289,6 +292,7 @@ function makeInitialState(): PetState {
     questStatus: null,
     questTxHash: null,
     lastEvaluation: null,
+    questCases: [],
     questRequirements: "",
     questEvidence: [{ url: "", note: "" }],
     mintedCards: [],
@@ -439,6 +443,17 @@ export function PetProvider({ children }: { children: ReactNode }) {
       : new Error("Evaluation completed, but the result could not be read from get_pet.");
   };
 
+  const readQuestCasesSafe = async (
+    contract: ReturnType<typeof createMochiPetContract>,
+    address: string,
+  ): Promise<QuestCase[]> => {
+    try {
+      return await contract.getQuestCases(address);
+    } catch {
+      return [];
+    }
+  };
+
   const parseItemPositions = (raw: unknown): Record<string, ItemTransform> => {
     if (typeof raw !== "string" || !raw.trim()) return {};
     try {
@@ -513,9 +528,10 @@ export function PetProvider({ children }: { children: ReactNode }) {
         setState((prev) => ({ ...prev, isLoading: false, hasPetOnChain: false }));
         return;
       }
-      const [pet, cards] = await Promise.all([
+      const [pet, cards, questCases] = await Promise.all([
         contract.getPet(addr),
         contract.getMintedCards(addr),
+        readQuestCasesSafe(contract, addr),
       ]);
       // GenLayer may return nested dataclasses or flatten them — handle both
       const raw = pet as any;
@@ -546,6 +562,8 @@ export function PetProvider({ children }: { children: ReactNode }) {
         itemPositions: parseItemPositions(raw.item_positions),
         lastResponse: raw.last_response ?? "",
         mintedCards: cards ?? [],
+        questCases,
+        lastEvaluation: raw.last_quest_eval ? parseQuestEvaluation(raw.last_quest_eval) : prev.lastEvaluation,
         lastDecayAt: Date.now(),
       }));
     } catch (err) {
@@ -1011,9 +1029,11 @@ export function PetProvider({ children }: { children: ReactNode }) {
           },
         });
         let result: QuestEvaluation;
+        let questCases: QuestCase[] = [];
         try {
           setState((prev) => ({ ...prev, questStatus: "reading" }));
           result = await readQuestEvalAfterTx(contract, wallet.address);
+          questCases = await readQuestCasesSafe(contract, wallet.address);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           throw new Error(`${message} | tx: ${txHash}`);
@@ -1021,6 +1041,7 @@ export function PetProvider({ children }: { children: ReactNode }) {
         setState((prev) => ({
           ...prev,
           lastEvaluation: result,
+          questCases,
           isEvaluating: false,
           questStatus: null,
         }));
@@ -1029,6 +1050,55 @@ export function PetProvider({ children }: { children: ReactNode }) {
         setState((prev) => ({ ...prev, isEvaluating: false, questStatus: null }));
         console.error("Quest evaluation failed:", err);
         toastError("Something went wrong, please try again!", {
+          description: errorMessage,
+        });
+      }
+    },
+    [wallet.address],
+  );
+
+  const appealQuest = useCallback(
+    async (questId: string, evidence: QuestEvidence[]) => {
+      if (!wallet.address) return;
+      setState((prev) => ({
+        ...prev,
+        isEvaluating: true,
+        questStatus: "submitting",
+        questTxHash: null,
+      }));
+      try {
+        const contract = createMochiPetContract(wallet.address);
+        await Promise.resolve();
+        setState((prev) => ({ ...prev, questStatus: "consensus" }));
+        const txHash = await contract.appealQuest(questId, evidence, {
+          onTxHash: (hash) => {
+            setState((prev) => ({ ...prev, questTxHash: hash }));
+          },
+        });
+
+        let result: QuestEvaluation;
+        let questCases: QuestCase[] = [];
+        try {
+          setState((prev) => ({ ...prev, questStatus: "reading" }));
+          result = await readQuestEvalAfterTx(contract, wallet.address);
+          questCases = await readQuestCasesSafe(contract, wallet.address);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          throw new Error(`${message} | tx: ${txHash}`);
+        }
+
+        setState((prev) => ({
+          ...prev,
+          lastEvaluation: result,
+          questCases,
+          isEvaluating: false,
+          questStatus: null,
+        }));
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Please try again.";
+        setState((prev) => ({ ...prev, isEvaluating: false, questStatus: null }));
+        console.error("Quest appeal failed:", err);
+        toastError("Appeal failed", {
           description: errorMessage,
         });
       }
@@ -1047,6 +1117,7 @@ export function PetProvider({ children }: { children: ReactNode }) {
     performAction,
     sendChat,
     evaluateQuest,
+    appealQuest,
     setQuestRequirements,
     setQuestEvidence,
     setNickname,

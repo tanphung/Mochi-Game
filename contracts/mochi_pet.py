@@ -11,6 +11,7 @@ EXP_THRESHOLDS = [
     3300, 4000, 4800, 5700, 6700, 7800, 9000, 10300, 11700, 13200,
 ]
 MAX_LEVEL = 20
+MAX_QUEST_TEXT_CHARS = 2000
 
 VALID_CATEGORIES = {"hat", "glasses", "necklace", "shirt", "handheld"}
 HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -169,6 +170,19 @@ class MintedCard:
 
 @allow_storage
 @dataclass
+class QuestCase:
+    quest_id: str
+    owner_hex: str
+    requirements: str
+    evidence_json: str
+    result_json: str
+    status: str
+    appeal_count: u32
+    created_at: str
+
+
+@allow_storage
+@dataclass
 class PetState:
     name: str
     nickname: str
@@ -190,6 +204,8 @@ class MochiPet(gl.Contract):
     # cards stored with composite key "{addr_hex}_{index}"
     cards: TreeMap[str, MintedCard]
     card_count: TreeMap[Address, u32]
+    quest_cases: TreeMap[str, QuestCase]
+    quest_count_by_owner: TreeMap[Address, u32]
 
     def __init__(self):
         pass
@@ -235,6 +251,262 @@ class MochiPet(gl.Contract):
                 raise gl.vm.UserError("Invalid item position")
             if x < -1000 or x > 1000 or y < -1000 or y > 1000:
                 raise gl.vm.UserError("Invalid item position")
+
+    def _quest_case_key(self, owner: Address, quest_id: str) -> str:
+        return f"{owner.as_hex}_{quest_id}"
+
+    def _parse_quest_evidence(self, evidence_json: str) -> list:
+        try:
+            evidence_list = json.loads(evidence_json)
+        except Exception:
+            raise gl.vm.UserError("Invalid evidence JSON")
+        if not isinstance(evidence_list, list) or len(evidence_list) == 0:
+            raise gl.vm.UserError("Evidence must be a non-empty list")
+        if len(evidence_list) > 5:
+            raise gl.vm.UserError("Maximum 5 evidence items allowed")
+
+        filled = []
+        for item in evidence_list:
+            if not isinstance(item, dict):
+                raise gl.vm.UserError("Invalid evidence item")
+            url = str(item.get("url", "")).strip()
+            note = str(item.get("note", "")).strip()[:200]
+            text = str(item.get("text", "")).strip()[:MAX_QUEST_TEXT_CHARS]
+            if url and not (url.startswith("http://") or url.startswith("https://")):
+                raise gl.vm.UserError("Invalid evidence URL")
+            if not url and not text:
+                raise gl.vm.UserError("Evidence item needs a URL or text")
+            filled.append({"url": url, "note": note, "text": text})
+        return filled
+
+    def _normalize_quest_eval(self, obj: dict, unreachable: list, filled: list, mode: str) -> str:
+        verdict_raw = str(obj.get("verdict", "needs_work")).lower()
+        verdict = "passed" if "pass" in verdict_raw else "needs_work"
+
+        reqs_raw = obj.get("requirements", [])
+        if not isinstance(reqs_raw, list):
+            reqs_raw = []
+
+        requirements = [
+            {
+                "text": str(r.get("text", ""))[:200],
+                "status": _norm_req_status(r.get("status")),
+                "note": str(r.get("note", ""))[:300],
+            }
+            for r in reqs_raw
+            if isinstance(r, dict) and str(r.get("text", "")).strip()
+        ][:15]
+
+        met_count = 0
+        partial_count = 0
+        missing_count = 0
+        for req in requirements:
+            status = req["status"]
+            if status == "met":
+                met_count += 1
+            elif status == "partial":
+                partial_count += 1
+            else:
+                missing_count += 1
+
+        if partial_count > 0 or missing_count > 0 or len(requirements) == 0:
+            verdict = "needs_work"
+        else:
+            verdict = "passed"
+
+        confidence = _parse_confidence(obj.get("confidence", 50))
+        if missing_count > 0 and confidence > 85:
+            confidence = 85
+        elif partial_count > 0 and confidence > 92:
+            confidence = 92
+
+        suggestions_raw = obj.get("suggestions", [])
+        if not isinstance(suggestions_raw, list):
+            suggestions_raw = []
+        suggestions = [str(s)[:200] for s in suggestions_raw if str(s).strip()][:8]
+
+        checked_urls = [item["url"] for item in filled if item["url"]]
+        evidence_count = len(filled)
+        fetched_count = evidence_count - len(unreachable)
+
+        normalized = {
+            "summary": str(obj.get("summary", ""))[:500],
+            "decision_reason": str(obj.get("decision_reason", obj.get("reason", "")))[:700],
+            "verdict": verdict,
+            "confidence": confidence,
+            "requirements": requirements,
+            "suggestions": suggestions,
+            "unreachable": [str(u) for u in unreachable if str(u).strip()],
+            "checked_urls": checked_urls,
+            "evidence_count": evidence_count,
+            "fetched_count": fetched_count,
+            "met_count": met_count,
+            "partial_count": partial_count,
+            "missing_count": missing_count,
+            "mode": mode,
+        }
+
+        return json.dumps(normalized)
+
+    def _quest_eval_is_meaningful(self, result: str) -> bool:
+        if not isinstance(result, str) or not result.strip():
+            return False
+        try:
+            obj = json.loads(result)
+        except Exception:
+            return False
+        if not isinstance(obj, dict):
+            return False
+        if obj.get("verdict") not in ("passed", "needs_work"):
+            return False
+        confidence = obj.get("confidence")
+        if not isinstance(confidence, int) or confidence < 0 or confidence > 100:
+            return False
+        reqs = obj.get("requirements", [])
+        if not isinstance(reqs, list) or len(reqs) == 0:
+            return False
+
+        met_count = 0
+        partial_count = 0
+        missing_count = 0
+        valid_statuses = {"met", "partial", "missing"}
+        for r in reqs:
+            if not isinstance(r, dict):
+                return False
+            status = str(r.get("status", "")).lower()
+            if status not in valid_statuses:
+                return False
+            if not str(r.get("text", "")).strip():
+                return False
+            if status == "met":
+                met_count += 1
+            elif status == "partial":
+                partial_count += 1
+            else:
+                missing_count += 1
+
+        if obj.get("met_count") != met_count:
+            return False
+        if obj.get("partial_count") != partial_count:
+            return False
+        if obj.get("missing_count") != missing_count:
+            return False
+        if obj.get("verdict") == "passed" and (partial_count > 0 or missing_count > 0):
+            return False
+        if obj.get("verdict") == "needs_work" and partial_count == 0 and missing_count == 0:
+            return False
+        if missing_count > 0 and confidence > 85:
+            return False
+
+        checked_urls = obj.get("checked_urls", [])
+        unreachable = obj.get("unreachable", [])
+        evidence_count = obj.get("evidence_count")
+        fetched_count = obj.get("fetched_count")
+        if not isinstance(checked_urls, list) or not isinstance(unreachable, list):
+            return False
+        if not isinstance(evidence_count, int) or evidence_count < len(checked_urls):
+            return False
+        if not isinstance(fetched_count, int) or fetched_count < 0 or fetched_count > evidence_count:
+            return False
+        return True
+
+    def _run_quest_judgment(self, safe_req: str, filled: list, mode: str) -> str:
+        def leader_fn() -> str:
+            fetched_parts = []
+            unreachable = []
+            for item in filled:
+                url = item["url"]
+                note = item["note"]
+                text = item["text"]
+                if url:
+                    try:
+                        if _is_x_url(url):
+                            content = _extract_x_text(_http_get_text(_x_oembed_url(url)))
+                        else:
+                            content = _http_get_text(url).strip()
+                        if content:
+                            note_line = f"Note: {note}\n" if note else ""
+                            text_line = f"\nUser-provided text/context:\n{text}" if text else ""
+                            fetched_parts.append(
+                                f"=== {url} ===\n{note_line}{content[:1500]}{text_line}"
+                            )
+                        else:
+                            unreachable.append(url)
+                    except Exception:
+                        unreachable.append(url)
+                elif text:
+                    note_line = f"Note: {note}\n" if note else ""
+                    fetched_parts.append(
+                        f"=== User-provided submission text ===\n{note_line}{text}"
+                    )
+
+            evidence_block = (
+                "\n\n".join(fetched_parts)
+                if fetched_parts
+                else "(No evidence content could be fetched)"
+            )
+            unreachable_json = json.dumps(unreachable)
+
+            prompt = f"""You are Mochi, an AI assistant helping a user verify their GenLayer community quest submission before they submit it.
+
+Evaluation mode: {mode}
+
+Quest Requirements:
+{safe_req}
+
+Evidence (fetched web content and/or user-provided submission text):
+{evidence_block}
+
+Evaluate whether the evidence satisfies each requirement. Respond ONLY with a single JSON object - no markdown, no extra text:
+{{
+  "summary": "<1-2 friendly sentences summarising your verdict>",
+  "decision_reason": "<brief reason for the final on-chain decision>",
+  "verdict": "passed" or "needs_work",
+  "confidence": <integer 0-100>,
+  "requirements": [
+    {{"text": "<requirement>", "status": "met" or "partial" or "missing", "note": "<brief reason>"}}
+  ],
+  "suggestions": ["<optional improvement>"],
+  "unreachable": {unreachable_json}
+}}
+
+Rules:
+- "passed" only when ALL requirements are fully met.
+- "needs_work" if any requirement is missing or only partial.
+- List every distinct requirement as a separate entry.
+- X/Twitter post content is TEXT ONLY (images and videos are not included). If a requirement is about an image, video, or other visual, mark it "partial" and note that the visual could not be verified automatically.
+- If only user-provided text is present, judge the draft/content directly and do not penalize it for lacking a public URL unless the quest explicitly requires a live public post.
+- suggestions may be empty.
+"""
+
+            raw = str(gl.nondet.exec_prompt(prompt)).strip()
+            if not raw:
+                raise gl.vm.UserError("[LLM_ERROR] Empty evaluation response")
+
+            if "```" in raw:
+                m = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw, re.I)
+                if m:
+                    raw = m.group(1).strip()
+
+            start = raw.find("{")
+            end = raw.rfind("}")
+            if start == -1 or end == -1 or end <= start:
+                raise gl.vm.UserError("[LLM_ERROR] No JSON object in evaluation response")
+            raw = raw[start:end + 1]
+
+            try:
+                obj = json.loads(raw)
+            except Exception:
+                raise gl.vm.UserError("[LLM_ERROR] Evaluation response is not valid JSON")
+
+            return self._normalize_quest_eval(obj, unreachable, filled, mode)
+
+        def validator_fn(leader_result) -> bool:
+            if not isinstance(leader_result, gl.vm.Return):
+                return False
+            return self._quest_eval_is_meaningful(leader_result.calldata)
+
+        return gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
 
     # ── write methods ─────────────────────────────────────────────────
 
@@ -488,180 +760,68 @@ Owner says: "{safe_msg}"
     @gl.public.write
     def evaluate_quest(self, requirements: str, evidence_json: str) -> None:
         pet = self._require_pet()
+        sender = gl.message.sender_address
 
         safe_req = requirements.strip()[:2000]
         if not safe_req:
             raise gl.vm.UserError("Quest requirements cannot be empty")
 
-        try:
-            evidence_list = json.loads(evidence_json)
-        except Exception:
-            raise gl.vm.UserError("Invalid evidence JSON")
-        if not isinstance(evidence_list, list) or len(evidence_list) == 0:
-            raise gl.vm.UserError("Evidence must be a non-empty list")
-        if len(evidence_list) > 5:
-            raise gl.vm.UserError("Maximum 5 evidence items allowed")
+        filled = self._parse_quest_evidence(evidence_json)
+        eval_json = self._run_quest_judgment(safe_req, filled, "initial")
 
-        filled = []
-        for item in evidence_list:
-            if not isinstance(item, dict):
-                raise gl.vm.UserError("Invalid evidence item")
-            url = str(item.get("url", "")).strip()
-            note = str(item.get("note", "")).strip()[:200]
-            if not url or not (url.startswith("http://") or url.startswith("https://")):
-                raise gl.vm.UserError(f"Invalid evidence URL")
-            filled.append({"url": url, "note": note})
+        count = u32(0)
+        if sender in self.quest_count_by_owner:
+            count = self.quest_count_by_owner[sender]
+        quest_id = f"quest_{count}"
+        self.quest_cases[self._quest_case_key(sender, quest_id)] = QuestCase(
+            quest_id=quest_id,
+            owner_hex=sender.as_hex,
+            requirements=safe_req,
+            evidence_json=json.dumps(filled),
+            result_json=eval_json,
+            status="evaluated",
+            appeal_count=u32(0),
+            created_at="",
+        )
+        self.quest_count_by_owner[sender] = u32(count + 1)
 
-        def leader_fn() -> str:
-            fetched_parts = []
-            unreachable = []
-            for item in filled:
-                url = item["url"]
-                note = item["note"]
-                try:
-                    if _is_x_url(url):
-                        # X/Twitter pages are JS-rendered; fetch the oEmbed JSON API instead
-                        content = _extract_x_text(_http_get_text(_x_oembed_url(url)))
-                    else:
-                        content = _http_get_text(url).strip()
-                    if content:
-                        note_line = f"Note: {note}\n" if note else ""
-                        fetched_parts.append(
-                            f"=== {url} ===\n{note_line}{content[:1500]}"
-                        )
-                    else:
-                        unreachable.append(url)
-                except Exception:
-                    unreachable.append(url)
-
-            evidence_block = (
-                "\n\n".join(fetched_parts)
-                if fetched_parts
-                else "(No evidence content could be fetched)"
-            )
-            unreachable_json = json.dumps(unreachable)
-
-            prompt = f"""You are Mochi, an AI assistant helping a user verify their GenLayer community quest submission before they submit it.
-
-Quest Requirements:
-{safe_req}
-
-Evidence (fetched content):
-{evidence_block}
-
-Evaluate whether the evidence satisfies each requirement. Respond ONLY with a single JSON object - no markdown, no extra text:
-{{
-  "summary": "<1-2 friendly sentences summarising your verdict>",
-  "verdict": "passed" or "needs_work",
-  "confidence": <integer 0-100>,
-  "requirements": [
-    {{"text": "<requirement>", "status": "met" or "partial" or "missing", "note": "<brief reason>"}}
-  ],
-  "suggestions": ["<optional improvement>"],
-  "unreachable": {unreachable_json}
-}}
-
-Rules:
-- "passed" only when ALL requirements are fully met.
-- "needs_work" if any requirement is missing or only partial.
-- List every distinct requirement as a separate entry.
-- X/Twitter post content is TEXT ONLY (images and videos are not included). If a requirement is about an image, video, or other visual, mark it "partial" and note that the visual could not be verified automatically.
-- suggestions may be empty.
-"""
-
-            raw = str(gl.nondet.exec_prompt(prompt)).strip()
-            if not raw:
-                raise gl.vm.UserError("[LLM_ERROR] Empty evaluation response")
-
-            # Strip markdown fences if present
-            if "```" in raw:
-                m = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw, re.I)
-                if m:
-                    raw = m.group(1).strip()
-
-            start = raw.find("{")
-            end = raw.rfind("}")
-            if start == -1 or end == -1 or end <= start:
-                raise gl.vm.UserError("[LLM_ERROR] No JSON object in evaluation response")
-            raw = raw[start:end + 1]
-
-            try:
-                obj = json.loads(raw)
-            except Exception:
-                raise gl.vm.UserError("[LLM_ERROR] Evaluation response is not valid JSON")
-
-            verdict_raw = str(obj.get("verdict", "needs_work")).lower()
-            verdict = "passed" if "pass" in verdict_raw else "needs_work"
-
-            confidence = _parse_confidence(obj.get("confidence", 50))
-
-            reqs_raw = obj.get("requirements", [])
-            if not isinstance(reqs_raw, list):
-                reqs_raw = []
-
-            suggestions_raw = obj.get("suggestions", [])
-            if not isinstance(suggestions_raw, list):
-                suggestions_raw = []
-
-            # Bound every field so the serialized JSON stays valid AND within a
-            # sane storage size. Never truncate the final json.dumps output — a
-            # mid-string cut would produce invalid JSON and fail validator_fn.
-            requirements = [
-                {
-                    "text": str(r.get("text", ""))[:200],
-                    "status": _norm_req_status(r.get("status")),
-                    "note": str(r.get("note", ""))[:300],
-                }
-                for r in reqs_raw
-                if isinstance(r, dict) and str(r.get("text", "")).strip()
-            ][:15]
-
-            suggestions = [str(s)[:200] for s in suggestions_raw if str(s).strip()][:8]
-
-            normalized = {
-                "summary": str(obj.get("summary", ""))[:500],
-                "verdict": verdict,
-                "confidence": confidence,
-                "requirements": requirements,
-                "suggestions": suggestions,
-                # Always the contract's own fetch-failure list (not the LLM's echo)
-                "unreachable": [str(u) for u in unreachable if str(u).strip()],
-            }
-
-            return json.dumps(normalized)
-
-        def validator_fn(leader_result) -> bool:
-            if not isinstance(leader_result, gl.vm.Return):
-                return False
-            result = leader_result.calldata
-            if not isinstance(result, str) or not result.strip():
-                return False
-            try:
-                obj = json.loads(result)
-            except Exception:
-                return False
-            if not isinstance(obj, dict):
-                return False
-            if obj.get("verdict") not in ("passed", "needs_work"):
-                return False
-            confidence = obj.get("confidence")
-            if not isinstance(confidence, int) or confidence < 0 or confidence > 100:
-                return False
-            reqs = obj.get("requirements", [])
-            if not isinstance(reqs, list):
-                return False
-            valid_statuses = {"met", "partial", "missing"}
-            for r in reqs:
-                if not isinstance(r, dict):
-                    return False
-                if str(r.get("status", "")).lower() not in valid_statuses:
-                    return False
-            return True
-
-        eval_json = gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
         pet.last_quest_eval = eval_json
         self._save_pet(pet)
 
+    @gl.public.write
+    def appeal_quest(self, quest_id: str, extra_evidence_json: str) -> None:
+        pet = self._require_pet()
+        sender = gl.message.sender_address
+        clean_quest_id = quest_id.strip()[:64]
+        key = self._quest_case_key(sender, clean_quest_id)
+        if key not in self.quest_cases:
+            raise gl.vm.UserError("Quest case not found")
+
+        case = self.quest_cases[key]
+        if int(case.appeal_count) >= 1:
+            raise gl.vm.UserError("Quest case can only be appealed once")
+
+        try:
+            existing = json.loads(case.evidence_json)
+        except Exception:
+            existing = []
+        if not isinstance(existing, list):
+            existing = []
+
+        extra = self._parse_quest_evidence(extra_evidence_json)
+        merged = existing + extra
+        if len(merged) > 5:
+            raise gl.vm.UserError("Maximum 5 evidence items allowed")
+
+        eval_json = self._run_quest_judgment(case.requirements, merged, "appeal")
+        case.evidence_json = json.dumps(merged)
+        case.result_json = eval_json
+        case.status = "appealed"
+        case.appeal_count = u32(int(case.appeal_count) + 1)
+        self.quest_cases[key] = case
+
+        pet.last_quest_eval = eval_json
+        self._save_pet(pet)
     # ── view methods ──────────────────────────────────────────────────
 
     @gl.public.view
@@ -679,3 +839,23 @@ Rules:
             return []
         count = int(self.card_count[sender])
         return [self.cards[f"{sender.as_hex}_{i}"] for i in range(count)]
+
+    @gl.public.view
+    def get_quest_cases(self) -> list:
+        sender = gl.message.sender_address
+        if sender not in self.quest_count_by_owner:
+            return []
+        count = int(self.quest_count_by_owner[sender])
+        return [
+            self.quest_cases[self._quest_case_key(sender, f"quest_{i}")]
+            for i in range(count)
+            if self._quest_case_key(sender, f"quest_{i}") in self.quest_cases
+        ]
+
+    @gl.public.view
+    def get_quest_case(self, quest_id: str) -> QuestCase:
+        sender = gl.message.sender_address
+        key = self._quest_case_key(sender, quest_id.strip()[:64])
+        if key not in self.quest_cases:
+            raise gl.vm.UserError("Quest case not found")
+        return self.quest_cases[key]

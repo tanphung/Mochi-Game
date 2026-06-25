@@ -12,12 +12,24 @@ LLM_MOCK_PATTERN = r".*You are Mochi.*"
 LLM_MOCK_RESPONSE = "Meow! I'm so happy to see you!"
 QUEST_LLM_MOCK_RESPONSE = "```json\n" + json.dumps({
     "summary": "Great work! Your submission meets all requirements.",
+    "decision_reason": "All core requirements were found in the evidence.",
     "verdict": "passed",
     "confidence": 90,
     "requirements": [
         {"text": "Write a post on X", "status": "met", "note": "Post found at the URL."},
     ],
     "suggestions": [],
+    "unreachable": [],
+}) + "\n```"
+QUEST_LLM_NEEDS_WORK_RESPONSE = "```json\n" + json.dumps({
+    "summary": "Close, but one required mention is missing.",
+    "decision_reason": "The evidence does not show the required mention.",
+    "verdict": "passed",
+    "confidence": 99,
+    "requirements": [
+        {"text": "Mention @RallyOnChain", "status": "missing", "note": "The mention is absent."},
+    ],
+    "suggestions": ["Add @RallyOnChain before submitting."],
     "unreachable": [],
 }) + "\n```"
 
@@ -267,6 +279,84 @@ def test_evaluate_quest_stores_result(direct_vm, direct_deploy, direct_alice):
     assert result["confidence"] == 90
     assert len(result["requirements"]) == 1
     assert result["requirements"][0]["status"] == "met"
+    assert result["met_count"] == 1
+    assert result["missing_count"] == 0
+    assert result["checked_urls"] == ["https://example.com/post"]
+
+    cases = list(contract.get_quest_cases())
+    assert len(cases) == 1
+    assert cases[0].quest_id == "quest_0"
+    assert cases[0].status == "evaluated"
+    assert json.loads(cases[0].result_json)["verdict"] == "passed"
+
+
+def test_evaluate_quest_accepts_text_only_submission(direct_vm, direct_deploy, direct_alice):
+    direct_vm.sender = direct_alice
+    contract = direct_deploy(CONTRACT_PATH)
+    contract.create_pet("Pip")
+
+    evidence = json.dumps([{
+        "url": "",
+        "note": "Draft post text",
+        "text": "My post explains Optimistic Democracy and why AI validators matter.",
+    }])
+    direct_vm.mock_llm(LLM_MOCK_PATTERN, QUEST_LLM_MOCK_RESPONSE)
+
+    contract.evaluate_quest("Write a post about Optimistic Democracy", evidence)
+
+    result = json.loads(contract.get_pet().last_quest_eval)
+    assert result["verdict"] == "passed"
+    assert result["confidence"] == 90
+    assert result["checked_urls"] == []
+    assert result["evidence_count"] == 1
+    assert result["fetched_count"] == 1
+
+
+def test_evaluate_quest_normalizes_inconsistent_verdict(direct_vm, direct_deploy, direct_alice):
+    direct_vm.sender = direct_alice
+    contract = direct_deploy(CONTRACT_PATH)
+    contract.create_pet("Pip")
+
+    evidence = json.dumps([{"url": "", "note": "Draft", "text": "A draft without the mention."}])
+    direct_vm.mock_llm(r"[\s\S]*Evaluation mode: initial[\s\S]*", QUEST_LLM_NEEDS_WORK_RESPONSE)
+
+    contract.evaluate_quest("Mention @RallyOnChain", evidence)
+
+    result = json.loads(contract.get_pet().last_quest_eval)
+    assert result["verdict"] == "needs_work"
+    assert result["confidence"] == 85
+    assert result["missing_count"] == 1
+
+
+def test_appeal_quest_updates_case_once(direct_vm, direct_deploy, direct_alice):
+    direct_vm.sender = direct_alice
+    contract = direct_deploy(CONTRACT_PATH)
+    contract.create_pet("Pip")
+
+    direct_vm.mock_llm(r"[\s\S]*Evaluation mode: initial[\s\S]*", QUEST_LLM_NEEDS_WORK_RESPONSE)
+    contract.evaluate_quest(
+        "Mention @RallyOnChain",
+        json.dumps([{"url": "", "note": "Draft", "text": "A draft without the mention."}]),
+    )
+
+    direct_vm.mock_llm(r"[\s\S]*Evaluation mode: appeal[\s\S]*", QUEST_LLM_MOCK_RESPONSE)
+    contract.appeal_quest(
+        "quest_0",
+        json.dumps([{"url": "", "note": "Updated draft", "text": "Now I mention @RallyOnChain."}]),
+    )
+
+    case = contract.get_quest_case("quest_0")
+    assert case.status == "appealed"
+    assert int(case.appeal_count) == 1
+    result = json.loads(case.result_json)
+    assert result["verdict"] == "passed"
+    assert result["mode"] == "appeal"
+
+    with direct_vm.expect_revert("Quest case can only be appealed once"):
+        contract.appeal_quest(
+            "quest_0",
+            json.dumps([{"url": "", "note": "", "text": "Trying again."}]),
+        )
 
 
 # ── test 13: evaluate_quest rejects empty requirements ───────────────
@@ -308,6 +398,16 @@ def test_evaluate_quest_rejects_invalid_evidence_url(direct_vm, direct_deploy, d
 
     evidence = json.dumps([{"url": "not-a-url", "note": ""}])
     with direct_vm.expect_revert("Invalid evidence URL"):
+        contract.evaluate_quest("Do something", evidence)
+
+
+def test_evaluate_quest_rejects_empty_evidence_item(direct_vm, direct_deploy, direct_alice):
+    direct_vm.sender = direct_alice
+    contract = direct_deploy(CONTRACT_PATH)
+    contract.create_pet("Pip")
+
+    evidence = json.dumps([{"url": "", "note": "", "text": ""}])
+    with direct_vm.expect_revert("Evidence item needs a URL or text"):
         contract.evaluate_quest("Do something", evidence)
 
 

@@ -15,7 +15,12 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { usePetStore } from "@/lib/store/petStore";
-import { QuestEvidence, RequirementStatus } from "@/lib/contracts/MochiPet";
+import {
+  parseQuestEvaluation,
+  QuestCase,
+  QuestEvidence,
+  RequirementStatus,
+} from "@/lib/contracts/MochiPet";
 import { getGenLayerExplorerTxUrl } from "@/lib/genlayer/client";
 
 interface Props {
@@ -32,8 +37,6 @@ const STATUS_META: Record<
   partial: { icon: <AlertTriangle className="h-4 w-4" />, cls: "text-amber-300" },
   missing: { icon: <XCircle className="h-4 w-4" />, cls: "text-rose-300" },
 };
-
-const SAMPLE_SUBMISSION_URL = "https://x.com/tanphung000/status/2069270294045585798";
 
 const SAMPLE_QUEST_REQUIREMENTS = String.raw`Campaign: Bring Back NFTs
 NFTs lost the plot with high mint prices and empty promises. Rally is doing the opposite: a free mint that rewards people who actually show up and participate.
@@ -99,13 +102,27 @@ Talking Points
 
 A free mint changes who an NFT is for, shifting the focus from wealth to community. Rewarding genuine participation and contribution is more sustainable than rewarding pure speculation. Wingston isn't just art; it has utilities that are already live and providing value within the Rally protocol.`;
 
+const SAMPLE_SUBMISSION_TEXT = String.raw`What bothered me most about the last NFT cycle was not the crash.
+
+It was the idea that anyone could buy a badge of belonging before doing anything to belong.
+
+That reversed the social contract. The wallet arrived first. Contribution was expected later.
+
+NFTs should have been receipts for participation: proof that you helped build something, not prepaid costumes for communities still living on a roadmap.
+
+Wingston from @RallyOnChain puts the order back where it belongs. New participants earn whitelist access by joining at least 3 campaigns and reaching the weekly Top 425, then mint for free. Holders can also stake Wingston to earn RLPs every day.
+
+Reply with one action that should earn someone an NFT, not one price they should pay for it.`;
+
 export function QuestEvaluator({ onBack }: Props) {
   const {
     isEvaluating,
     questStatus,
     questTxHash,
     lastEvaluation,
+    questCases,
     evaluateQuest,
+    appealQuest,
     questRequirements: requirements,
     questEvidence: evidence,
     setQuestRequirements: setRequirements,
@@ -115,6 +132,9 @@ export function QuestEvaluator({ onBack }: Props) {
   const [reqError, setReqError] = useState(false);
   const [evidenceError, setEvidenceError] = useState(false);
   const [resultDismissed, setResultDismissed] = useState(false);
+  const [appealOpenId, setAppealOpenId] = useState<string | null>(null);
+  const [appealEvidence, setAppealEvidence] = useState<QuestEvidence>({ url: "", note: "", text: "" });
+  const [appealError, setAppealError] = useState(false);
 
   const updateEvidence = (i: number, patch: Partial<QuestEvidence>) =>
     setEvidence((list) => list.map((e, idx) => (idx === i ? { ...e, ...patch } : e)));
@@ -125,8 +145,9 @@ export function QuestEvaluator({ onBack }: Props) {
     setRequirements(SAMPLE_QUEST_REQUIREMENTS);
     setEvidence([
       {
-        url: SAMPLE_SUBMISSION_URL,
-        note: "Example X post for the Rally Wingston NFT quest",
+        url: "",
+        note: "Example draft text for the Rally Wingston NFT quest",
+        text: SAMPLE_SUBMISSION_TEXT,
       },
     ]);
     setReqError(false);
@@ -136,12 +157,44 @@ export function QuestEvaluator({ onBack }: Props) {
 
   const handleEvaluate = async () => {
     const noReq = !requirements.trim();
-    const filled = evidence.filter((e) => e.url.trim().length > 0);
+    const filled = evidence
+      .map((e) => ({
+        url: e.url.trim(),
+        note: e.note.trim(),
+        text: e.text?.trim() || "",
+      }))
+      .filter((e) => e.url.length > 0 || e.text.length > 0);
     setReqError(noReq);
     setEvidenceError(filled.length === 0);
     if (noReq || filled.length === 0) return;
     setResultDismissed(false);
     await evaluateQuest(requirements.trim(), filled);
+  };
+
+  const handleAppeal = async (questId: string) => {
+    const filled = {
+      url: appealEvidence.url.trim(),
+      note: appealEvidence.note.trim(),
+      text: appealEvidence.text?.trim() || "",
+    };
+    const empty = filled.url.length === 0 && filled.text.length === 0;
+    setAppealError(empty);
+    if (empty) return;
+    setResultDismissed(false);
+    await appealQuest(questId, [filled]);
+    setAppealOpenId(null);
+    setAppealEvidence({ url: "", note: "", text: "" });
+  };
+
+  const renderCaseVerdict = (questCase: QuestCase) => {
+    const result = parseQuestEvaluation(questCase.result_json);
+    return {
+      result,
+      label: result.verdict === "passed" ? "PASSED" : "NEEDS WORK",
+      cls: result.verdict === "passed"
+        ? "bg-emerald-400/15 text-emerald-300"
+        : "bg-amber-400/15 text-amber-300",
+    };
   };
 
   const showResult = !!lastEvaluation && !resultDismissed && !isEvaluating;
@@ -218,7 +271,7 @@ export function QuestEvaluator({ onBack }: Props) {
           <h3 className="text-base font-black">Your Submission</h3>
         </div>
         <p className="text-xs font-semibold text-white/45">
-          Add your evidence links: X post, GitHub repo, design file, blog post...
+          Add a public link, paste submission text, or provide both. Mochi can review whichever you have.
         </p>
 
         <div className="space-y-3">
@@ -241,11 +294,19 @@ export function QuestEvaluator({ onBack }: Props) {
                     </button>
                   )}
                 </div>
+                <textarea
+                  value={e.text || ""}
+                  onChange={(ev) => updateEvidence(i, { text: ev.target.value })}
+                  rows={5}
+                  maxLength={2000}
+                  placeholder="Submission text / context (optional): paste your draft if you do not have a public link yet."
+                  className="w-full resize-y rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-teal-300/50"
+                />
                 <input
                   value={e.url}
                   onChange={(ev) => updateEvidence(i, { url: ev.target.value })}
-                  placeholder="https://..."
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm outline-none focus:border-teal-300/50"
+                  placeholder="Public link (optional): https://..."
+                  className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm outline-none focus:border-teal-300/50"
                 />
                 {invalid && (
                   <p className="mt-1 text-xs font-bold text-amber-300">
@@ -260,7 +321,7 @@ export function QuestEvaluator({ onBack }: Props) {
                 <input
                   value={e.note}
                   onChange={(ev) => updateEvidence(i, { note: ev.target.value })}
-                  placeholder="Short note (optional): what is this link?"
+                  placeholder="Short note (optional): what is this evidence?"
                   className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs outline-none focus:border-teal-300/40"
                 />
               </div>
@@ -276,7 +337,7 @@ export function QuestEvaluator({ onBack }: Props) {
           Add Evidence
         </button>
         {evidenceError && (
-          <p className="text-xs font-bold text-rose-300">Add at least one evidence link!</p>
+          <p className="text-xs font-bold text-rose-300">Add at least one public link or paste submission text.</p>
         )}
       </div>
 
@@ -342,6 +403,29 @@ export function QuestEvaluator({ onBack }: Props) {
             <p className="text-sm font-semibold text-white/80">{lastEvaluation.summary}</p>
           )}
 
+          {lastEvaluation.decision_reason && (
+            <div className="rounded-xl border border-teal-300/15 bg-teal-300/10 p-3">
+              <h4 className="mb-1 text-xs font-black uppercase tracking-wider text-teal-100">
+                On-chain decision reason
+              </h4>
+              <p className="text-sm font-semibold text-white/75">{lastEvaluation.decision_reason}</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              ["Evidence", lastEvaluation.evidence_count],
+              ["Met", lastEvaluation.met_count],
+              ["Partial", lastEvaluation.partial_count],
+              ["Missing", lastEvaluation.missing_count],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2 text-center">
+                <p className="text-[10px] font-black uppercase tracking-wider text-white/35">{label}</p>
+                <p className="text-sm font-black text-teal-200">{value ?? 0}</p>
+              </div>
+            ))}
+          </div>
+
           {lastEvaluation.requirements.length > 0 && (
             <div className="space-y-2">
               {lastEvaluation.requirements.map((r, i) => {
@@ -382,6 +466,111 @@ export function QuestEvaluator({ onBack }: Props) {
             <RefreshCw className="h-4 w-4" />
             Re-evaluate
           </button>
+        </div>
+      )}
+
+      {questCases.length > 0 && (
+        <div className="mochi-panel space-y-3 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-base font-black">Quest Case History</h3>
+            <span className="text-xs font-bold text-white/40">{questCases.length} on-chain case{questCases.length === 1 ? "" : "s"}</span>
+          </div>
+
+          <div className="space-y-3">
+            {questCases.map((questCase) => {
+              const { result, label, cls } = renderCaseVerdict(questCase);
+              const canAppeal = result.verdict === "needs_work" && Number(questCase.appeal_count) < 1;
+              const isOpen = appealOpenId === questCase.quest_id;
+              return (
+                <div key={questCase.quest_id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wider text-white/40">
+                        {questCase.quest_id} · {questCase.status}
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-sm font-semibold text-white/70">
+                        {questCase.requirements}
+                      </p>
+                    </div>
+                    <span className={`rounded-full px-3 py-1 text-xs font-black ${cls}`}>{label}</span>
+                  </div>
+
+                  {result.summary && (
+                    <p className="mt-3 text-xs font-semibold text-white/55">{result.summary}</p>
+                  )}
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-bold text-white/40">
+                    <span>Confidence {result.confidence}%</span>
+                    <span>Met {result.met_count ?? 0}</span>
+                    <span>Missing {result.missing_count ?? 0}</span>
+                    <span>Appeals {questCase.appeal_count}/1</span>
+                  </div>
+
+                  {canAppeal && !isOpen && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAppealOpenId(questCase.quest_id);
+                        setAppealError(false);
+                      }}
+                      disabled={isEvaluating}
+                      className="mochi-ghost-button mt-3 px-3 py-2 text-xs disabled:opacity-50"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Appeal with extra evidence
+                    </button>
+                  )}
+
+                  {canAppeal && isOpen && (
+                    <div className="mt-3 space-y-2 rounded-xl border border-white/8 bg-white/[0.03] p-3">
+                      <input
+                        value={appealEvidence.url}
+                        onChange={(ev) => setAppealEvidence((prev) => ({ ...prev, url: ev.target.value }))}
+                        placeholder="Extra public link (optional)"
+                        className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs outline-none focus:border-teal-300/40"
+                      />
+                      <input
+                        value={appealEvidence.note}
+                        onChange={(ev) => setAppealEvidence((prev) => ({ ...prev, note: ev.target.value }))}
+                        placeholder="Short note (optional)"
+                        className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs outline-none focus:border-teal-300/40"
+                      />
+                      <textarea
+                        value={appealEvidence.text || ""}
+                        onChange={(ev) => setAppealEvidence((prev) => ({ ...prev, text: ev.target.value }))}
+                        rows={2}
+                        maxLength={2000}
+                        placeholder="Extra submission text / context (optional)"
+                        className="w-full resize-y rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs outline-none focus:border-teal-300/40"
+                      />
+                      {appealError && (
+                        <p className="text-xs font-bold text-rose-300">Add a link or paste extra text for the appeal.</p>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleAppeal(questCase.quest_id)}
+                          disabled={isEvaluating}
+                          className="mochi-primary-button px-3 py-2 text-xs disabled:opacity-50"
+                        >
+                          <Sparkles className="h-4 w-4" />
+                          Submit appeal
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAppealOpenId(null)}
+                          disabled={isEvaluating}
+                          className="mochi-ghost-button px-3 py-2 text-xs disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
