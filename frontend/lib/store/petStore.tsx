@@ -454,6 +454,65 @@ export function PetProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const readNewQuestResultAfterTx = async (
+    contract: ReturnType<typeof createMochiPetContract>,
+    address: string,
+    previousCaseCount: number,
+  ): Promise<{ result: QuestEvaluation; questCases: QuestCase[] }> => {
+    let latestError: unknown = null;
+    for (let attempt = 0; attempt < 15; attempt += 1) {
+      try {
+        const questCases = await contract.getQuestCases(address);
+        if (questCases.length > previousCaseCount) {
+          const latestCase = questCases[0];
+          const result = parseQuestEvaluation(latestCase.result_json);
+          return { result, questCases };
+        }
+
+        const latestPet = await contract.getPet(address);
+        const raw = readStringField(latestPet, ["last_quest_eval", "lastQuestEval"]);
+        if (raw && previousCaseCount === 0) {
+          return { result: await readQuestEvalAfterTx(contract, address), questCases };
+        }
+      } catch (err) {
+        latestError = err;
+      }
+      await sleepMs(2000);
+    }
+
+    throw latestError instanceof Error
+      ? latestError
+      : new Error("Evaluation completed, but the new quest case could not be read from contract state.");
+  };
+
+  const readAppealedQuestResultAfterTx = async (
+    contract: ReturnType<typeof createMochiPetContract>,
+    address: string,
+    questId: string,
+    previousAppealCount: number,
+  ): Promise<{ result: QuestEvaluation; questCases: QuestCase[] }> => {
+    let latestError: unknown = null;
+    for (let attempt = 0; attempt < 15; attempt += 1) {
+      try {
+        const questCases = await contract.getQuestCases(address);
+        const appealedCase = questCases.find((questCase) => questCase.quest_id === questId);
+        if (appealedCase && Number(appealedCase.appeal_count) > previousAppealCount) {
+          return {
+            result: parseQuestEvaluation(appealedCase.result_json),
+            questCases,
+          };
+        }
+      } catch (err) {
+        latestError = err;
+      }
+      await sleepMs(2000);
+    }
+
+    throw latestError instanceof Error
+      ? latestError
+      : new Error("Appeal completed, but the updated quest case could not be read from contract state.");
+  };
+
   const parseItemPositions = (raw: unknown): Record<string, ItemTransform> => {
     if (typeof raw !== "string" || !raw.trim()) return {};
     try {
@@ -1021,6 +1080,8 @@ export function PetProvider({ children }: { children: ReactNode }) {
       }));
       try {
         const contract = createMochiPetContract(wallet.address);
+        const previousCases = await readQuestCasesSafe(contract, wallet.address);
+        const previousCaseCount = Math.max(stateRef.current.questCases.length, previousCases.length);
         await Promise.resolve();
         setState((prev) => ({ ...prev, questStatus: "consensus" }));
         const txHash = await contract.evaluateQuest(requirements, evidence, {
@@ -1032,8 +1093,11 @@ export function PetProvider({ children }: { children: ReactNode }) {
         let questCases: QuestCase[] = [];
         try {
           setState((prev) => ({ ...prev, questStatus: "reading" }));
-          result = await readQuestEvalAfterTx(contract, wallet.address);
-          questCases = await readQuestCasesSafe(contract, wallet.address);
+          ({ result, questCases } = await readNewQuestResultAfterTx(
+            contract,
+            wallet.address,
+            previousCaseCount,
+          ));
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           throw new Error(`${message} | tx: ${txHash}`);
@@ -1068,6 +1132,12 @@ export function PetProvider({ children }: { children: ReactNode }) {
       }));
       try {
         const contract = createMochiPetContract(wallet.address);
+        const previousCases = await readQuestCasesSafe(contract, wallet.address);
+        const previousAppealedCase = previousCases.find((questCase) => questCase.quest_id === questId) ??
+          stateRef.current.questCases.find((questCase) => questCase.quest_id === questId);
+        const previousAppealCount = Number(
+          previousAppealedCase?.appeal_count ?? 0,
+        );
         await Promise.resolve();
         setState((prev) => ({ ...prev, questStatus: "consensus" }));
         const txHash = await contract.appealQuest(questId, evidence, {
@@ -1080,8 +1150,12 @@ export function PetProvider({ children }: { children: ReactNode }) {
         let questCases: QuestCase[] = [];
         try {
           setState((prev) => ({ ...prev, questStatus: "reading" }));
-          result = await readQuestEvalAfterTx(contract, wallet.address);
-          questCases = await readQuestCasesSafe(contract, wallet.address);
+          ({ result, questCases } = await readAppealedQuestResultAfterTx(
+            contract,
+            wallet.address,
+            questId,
+            previousAppealCount,
+          ));
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           throw new Error(`${message} | tx: ${txHash}`);

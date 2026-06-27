@@ -198,6 +198,17 @@ export function QuestEvaluator({ onBack }: Props) {
   };
 
   const showResult = !!lastEvaluation && !resultDismissed && !isEvaluating;
+  const visibleEvidence = Array.isArray(evidence) ? evidence : [];
+  const visibleQuestCases = Array.isArray(questCases) ? questCases : [];
+  const visibleUnreachable = Array.isArray(lastEvaluation?.unreachable)
+    ? lastEvaluation.unreachable
+    : [];
+  const visibleRequirements = Array.isArray(lastEvaluation?.requirements)
+    ? lastEvaluation.requirements
+    : [];
+  const visibleSuggestions = Array.isArray(lastEvaluation?.suggestions)
+    ? lastEvaluation.suggestions
+    : [];
   const questTxUrl = questTxHash ? getGenLayerExplorerTxUrl(questTxHash) : "";
   const shortTxHash = questTxHash
     ? `${questTxHash.slice(0, 10)}...${questTxHash.slice(-8)}`
@@ -275,16 +286,17 @@ export function QuestEvaluator({ onBack }: Props) {
         </p>
 
         <div className="space-y-3">
-          {evidence.map((e, i) => {
-            const invalid = e.url.trim().length > 0 && !URL_RE.test(e.url.trim());
-            const unreachable = !!lastEvaluation?.unreachable.includes(e.url.trim());
+          {visibleEvidence.map((e, i) => {
+            const evidenceUrl = String(e.url ?? "").trim();
+            const invalid = evidenceUrl.length > 0 && !URL_RE.test(evidenceUrl);
+            const unreachable = visibleUnreachable.includes(evidenceUrl);
             return (
               <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-xs font-black uppercase tracking-wider text-white/55">
                     Evidence {i + 1}
                   </span>
-                  {evidence.length > 1 && (
+                  {visibleEvidence.length > 1 && (
                     <button
                       onClick={() => removeEvidence(i)}
                       className="grid h-7 w-7 place-items-center rounded-full text-white/40 transition hover:bg-rose-400/15 hover:text-rose-300"
@@ -426,9 +438,9 @@ export function QuestEvaluator({ onBack }: Props) {
             ))}
           </div>
 
-          {lastEvaluation.requirements.length > 0 && (
+          {visibleRequirements.length > 0 && (
             <div className="space-y-2">
-              {lastEvaluation.requirements.map((r, i) => {
+              {visibleRequirements.map((r, i) => {
                 const meta = STATUS_META[r.status];
                 return (
                   <div
@@ -446,13 +458,13 @@ export function QuestEvaluator({ onBack }: Props) {
             </div>
           )}
 
-          {lastEvaluation.suggestions.length > 0 && (
+          {visibleSuggestions.length > 0 && (
             <div className="rounded-xl border border-white/8 bg-white/[0.03] p-3">
               <h4 className="mb-2 text-xs font-black uppercase tracking-wider text-white/45">
                 Suggestions
               </h4>
               <ul className="list-disc space-y-1 pl-5 text-sm font-semibold text-white/70">
-                {lastEvaluation.suggestions.map((s, i) => (
+                {visibleSuggestions.map((s, i) => (
                   <li key={i}>{s}</li>
                 ))}
               </ul>
@@ -469,15 +481,15 @@ export function QuestEvaluator({ onBack }: Props) {
         </div>
       )}
 
-      {questCases.length > 0 && (
+      {visibleQuestCases.length > 0 && (
         <div className="mochi-panel space-y-3 p-4">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-base font-black">Quest Case History</h3>
-            <span className="text-xs font-bold text-white/40">{questCases.length} on-chain case{questCases.length === 1 ? "" : "s"}</span>
+            <span className="text-xs font-bold text-white/40">{visibleQuestCases.length} on-chain case{visibleQuestCases.length === 1 ? "" : "s"}</span>
           </div>
 
           <div className="space-y-3">
-            {questCases.map((questCase) => {
+            {visibleQuestCases.map((questCase) => {
               const { result, label, cls } = renderCaseVerdict(questCase);
               const canAppeal = result.verdict === "needs_work" && Number(questCase.appeal_count) < 1;
               const isOpen = appealOpenId === questCase.quest_id;
