@@ -194,6 +194,46 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    const refreshWalletState = async () => {
+      const provider = getEthereumProvider();
+      if (!provider) return;
+
+      try {
+        const accounts = await getAccounts();
+        const chainId = await getCurrentChainId();
+        const correctNetwork = await isOnGenLayerNetwork();
+        setState((prev) => ({
+          ...prev,
+          address: accounts[0] || null,
+          chainId,
+          isConnected: accounts.length > 0,
+          isWalletInstalled: true,
+          isOnCorrectNetwork: correctNetwork,
+          isLoading: false,
+        }));
+      } catch (err) {
+        console.error("Error refreshing wallet after idle:", err);
+      }
+    };
+
+    const handleFocus = () => {
+      refreshWalletState();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshWalletState();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
   /**
    * Connect to MetaMask
    */

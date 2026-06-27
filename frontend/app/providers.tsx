@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { WalletProvider } from "@/lib/genlayer/WalletProvider";
 import { PetProvider } from "@/lib/store/petStore";
+import { AppErrorBoundary } from "@/components/mochi/AppErrorBoundary";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // Use useState to ensure QueryClient is only created once per component lifecycle
@@ -21,11 +22,23 @@ export function Providers({ children }: { children: React.ReactNode }) {
       })
   );
 
+  useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      console.error("Recovered unhandled async error:", event.reason);
+      event.preventDefault();
+    };
+
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+    return () => {
+      window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+    };
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <WalletProvider>
         <PetProvider>
-          {children}
+          <AppErrorBoundary>{children}</AppErrorBoundary>
         </PetProvider>
       </WalletProvider>
       <Toaster

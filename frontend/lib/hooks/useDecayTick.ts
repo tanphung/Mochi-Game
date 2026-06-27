@@ -8,7 +8,13 @@ export function useDecayTick() {
 
   useEffect(() => {
     if (appPhase !== "dashboard") return;
-    const id = setInterval(() => applyDecay(), 60_000);
+    const runDecay = () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        return;
+      }
+      applyDecay();
+    };
+    const id = setInterval(runDecay, 60_000);
     return () => clearInterval(id);
   }, [applyDecay, appPhase]);
 }
